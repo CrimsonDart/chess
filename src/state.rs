@@ -1,48 +1,15 @@
 use Piece::*;
 use std::fmt::{Display, Formatter, Error};
-use std::fmt::Write as _;
 
-pub fn print_board() {
 
-    let mut s = String::new();
-    write!(&mut s, "~ A  B  C  D  E  F  G  H \n");
-    let mut i: u8 = 9;
 
-    for row in BOARD.iter().rev() {
-        i = i - 1;
 
-        write!(&mut s, "{} ", i);
 
-        for space in row {
-            match space {
-                Some(data) => {
-                    write!(&mut s, "{}{} ",
-                           if data.1 {
-                               "W"
-                           } else {
-                               "B"
-                           },
 
-                           match data.0 {
-                               Pawn => "P",
-                               Rook => "R",
-                               Knight => "N",
-                               Bishop => "B",
-                               Queen => "Q",
-                               King => "K"
-                           }
-                       );
-                },
-                None => {write!(&mut s, "__ ");}
-            }
-        }
-        write!(&mut s, "\n");
-    }
-    print!("{}", s);
+
+pub fn get_board() -> &'static [[Option<Space>; 8]; 8] {
+    &BOARD
 }
-
-
-
 
 static BOARD: [[Option<Space>; 8]; 8] =
     [[Some(Space::new(Rook, true)), Some(Space::new(Knight, true)), Some(Space::new(Bishop, true)), Some(Space::new(King, true)),
@@ -57,14 +24,17 @@ static BOARD: [[Option<Space>; 8]; 8] =
      Some(Space::new(Queen, false)), Some(Space::new(Bishop, false)), Some(Space::new(Knight, false)), Some(Space::new(Rook, false))]
     ];
 
-
+// gets the Piece at the given input space.
+// returns Err if out of bounds, returns Ok(None) if empty.
+//
+// coordinates are real board space, not zeroed.
 pub fn read_board(x: usize, y: usize) -> Result<Option<Space>, &'static str> {
 
-    if x < 0 || x > 7 || y < 0 || y > 7 {
+    if x < 1 || x > 8 || y < 1 || y > 8 {
         return Err("Index out of Bounds!");
     }
 
-    Ok(BOARD[y][x])
+    Ok(BOARD[y - 1][x - 1])
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,75 +48,105 @@ pub enum Piece {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Space (Piece, bool);
+pub struct Space (pub Piece, pub bool);
 
 impl Space {
-    const fn new(piece: Piece, is_white: bool) -> Self {
+    pub const fn new(piece: Piece, is_white: bool) -> Self {
         Space(piece, is_white)
     }
 
-    /*
-    fn move_list(&self, x: usize, y: usize) -> Vec<(usize, usize)> {
+    fn test_line(x:usize, y:usize, dx: isize, dy: isize, is_white: bool, vector: &mut Vec<(usize, usize)>) {
+
+        let mut index: isize = 1;
+        let mut not_ended = true;
+
+        while not_ended {
+
+            let (cx, cy): (usize, usize) =
+                ((isize::try_from(x).unwrap() + (index * dx)).try_into().unwrap(),
+                                            (isize::try_from(y).unwrap() + (index * dy)).try_into().unwrap());
+
+
+            let space = read_board(cx, cy);
+
+            if let Ok(Some(p)) = space {
+                if p.1 != is_white {
+                    vector.push((cx, cy));
+                    not_ended = false;
+                    println!("enemy space");
+                } else {
+                    not_ended = false;
+                    println!("ally space");
+                }
+            } else if let Ok(None) = space {
+                vector.push((cx, cy));
+                println!("Empty Space");
+            } else {
+                println!("err");
+                not_ended = false;
+            }
+            index = index + 1;
+        }
+    }
+
+
+    pub fn move_list(&self, x: usize, y: usize) -> Vec<(usize, usize)> {
         let mut vector: Vec<(usize, usize)> = Vec::new();
 
-        match self.piece {
+        match self.0 {
 
             Pawn => {
 
-                let m = if self.is_white {
-                    y-1
-                } else {
-                    y+1
+                // pushes the space in front of the pawn, if empty
+
+                let m = match self.1 {
+                    true => y-1,
+                    false => y+1
                 };
 
-                // pushes the space in front of the pawn if it's empty.
-                let forward = read_board(x, m)
-                if read_board(x, m).is_ok() == None {
-                    vector.push((x, m));
+                if let Ok(space) = read_board(x, m) {
+                    if space == None {
+                        vector.push((x, m));
+                    }
                 }
 
-                // pushes diagonal to
-                let diagonal_p = read_board(x + 1, m)?;
-                let diagonal_n = read_board(x - 1, m)?;
+                //diagonal attacks
 
-
-
-
-
-
-
-
-
-                if self.is_white != BOARD[x - 1][m] {
-                    vector.push((x-1, m));
+                if let Ok(Some(p)) = read_board(x-1, m) {
+                    if p.1 != self.1 {
+                        vector.push((x-1, m));
+                    }
                 }
-                if self.get_color() == BOARD[x + 1][m].get_color().opposite() {
-                    vector.push((x+1, m));
+
+                if let Ok(Some(p)) = read_board(x+1, m) {
+                    if p.1 != self.1 {
+                        vector.push((x+1, m));
+                    }
                 }
             },
 
-            WhiteRook | BlackRook => {
+            Rook => {
+                Space::test_line(x, y, 0, 1, self.1, &mut vector);
+                Space::test_line(x, y, 0, -1, self.1, &mut vector);
+                Space::test_line(x, y, -1, 0, self.1, &mut vector);
+                Space::test_line(x, y, 1, 0, self.1, &mut vector);
+            }
+            Knight => {/*TODO*/},
+            Bishop => {
+                Space::test_line(x, y, 1, 1, self.1, &mut vector);
+                Space::test_line(x, y, -1, 1, self.1, &mut vector);
+                Space::test_line(x, y, 1, -1, self.1, &mut vector);
+                Space::test_line(x, y, -1, -1, self.1, &mut vector);
 
-
-            },
+            }
 
 
 
             _ => ()
         }
-
-
-
-
-
-
-
-
-
-
         vector
     }
-    */
+
 }
 
 impl Display for Space {
@@ -166,12 +166,7 @@ impl Display for Space {
                    Queen => "Q",
                    King => "K"
                }
-
-
-
-
-
-                       )
+        )
     }
 }
 
