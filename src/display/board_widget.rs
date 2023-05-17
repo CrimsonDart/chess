@@ -4,7 +4,7 @@
 
 
 use crate::state::{Piece, Space};
-use tui::{
+use ratatui::{
     layout::Rect,
     buffer::{Buffer, Cell},
     widgets::Widget,
@@ -25,13 +25,13 @@ impl DisplayState {
     }
 }
 
-enum ColorMod {
+enum FColor {
     Auto,
     White,
     Black
 }
 
-fn write_cell(cells: &mut Vec<Cell>, is_dark: &bool, color: ColorMod, c: char) -> bool {
+fn write_cell(cells: &mut Vec<Cell>, is_dark: &bool, color: FColor, c: char) -> bool {
 
     let black_tile: Style = {
 
@@ -60,8 +60,8 @@ fn write_cell(cells: &mut Vec<Cell>, is_dark: &bool, color: ColorMod, c: char) -
     arr[1].set_style(style).set_char(c);
 
     match color {
-        ColorMod::White => {arr[1].set_fg(Color::Rgb(230,230,230));},
-        ColorMod::Black => {arr[1].set_fg(Color::Rgb(16,16,16));},
+        FColor::White => {arr[1].set_fg(Color::Rgb(230,230,230));},
+        FColor::Black => {arr[1].set_fg(Color::Rgb(16,16,16));},
         _ => ()
     }
 
@@ -88,51 +88,38 @@ impl Widget for DisplayState {
 
         // top row numbers
         for c in top_bottom_row.chars() {
-            is_dark = write_cell(&mut cells, &is_dark, ColorMod::Auto, c);
+            is_dark = write_cell(&mut cells, &is_dark, FColor::Auto, c);
         }
 
         // render board and side numbers.
-        let mut row_n:u8 = 8;
+        let mut row_n:usize = 8;
         for row in self.board.iter().rev() {
 
-            // matches row number to char
-            // (since for some reason casting and Into<> doesnt work)
-            let n = match row_n {
-                8 => '8',
-                7 => '7',
-                6 => '6',
-                5 => '5',
-                4 => '4',
-                3 => '3',
-                2 => '2',
-                1 => '1',
-                _ => '0'
-            };
+            row_n = row_n - 1;
+            let n = ['1', '2', '3', '4', '5', '6', '7', '8'][row_n];
 
-            is_dark = !is_dark;
-            is_dark = write_cell(&mut cells, &is_dark, ColorMod::Auto, n);
+            is_dark = write_cell(&mut cells, &!is_dark, FColor::Auto, n);
             for p in row {
 
                 if let Some(piece) = p {
                     is_dark = write_cell(&mut cells, &is_dark,
                         match piece.1 {
-                            true => ColorMod::White,
-                            false => ColorMod::Black
+                            true => FColor::White,
+                            false => FColor::Black
                         },
                         piece.0.into()
                     )
                 } else {
-                    is_dark = write_cell(&mut cells, &is_dark, ColorMod::Auto, ' ');
+                    is_dark = write_cell(&mut cells, &is_dark, FColor::Auto, ' ');
                 }
             }
-            is_dark = write_cell(&mut cells, &is_dark, ColorMod::Auto, n);
-            row_n = row_n - 1;
+            is_dark = write_cell(&mut cells, &is_dark, FColor::Auto, n);
         }
 
         // bottom row numbers
         is_dark = !is_dark;
         for c in top_bottom_row.chars() {
-            is_dark = write_cell(&mut cells, &is_dark, ColorMod::Auto, c);
+            is_dark = write_cell(&mut cells, &is_dark, FColor::Auto, c);
         }
 
         // maps the local Vec<Cell> to the full terminal buffer.
