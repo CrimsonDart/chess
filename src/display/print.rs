@@ -8,6 +8,7 @@ use crate::Piece::*;
 
 static mut DARK_TILE: bool = false;
 
+// prints the board to the screen
 pub fn print_state() {
 
     let mut s = String::new();

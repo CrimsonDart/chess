@@ -47,6 +47,20 @@ pub enum Piece {
     King
 }
 
+impl Into<char> for Piece {
+    fn into(self) -> char {
+
+        match self {
+            Pawn => 'P',
+            Rook => 'R',
+            Knight => 'N',
+            Bishop => 'B',
+            Queen => 'Q',
+            King => 'K'
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Space (pub Piece, pub bool);
 
