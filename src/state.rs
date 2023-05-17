@@ -8,20 +8,22 @@ use std::fmt::{Display, Formatter, Error};
 
 
 pub fn get_board() -> &'static [[Option<Space>; 8]; 8] {
-    &BOARD
+    unsafe {
+        &BOARD
+    }
 }
 
-static BOARD: [[Option<Space>; 8]; 8] =
-    [[Some(Space::new(Rook, true)), Some(Space::new(Knight, true)), Some(Space::new(Bishop, true)), Some(Space::new(King, true)),
-      Some(Space::new(Queen, true)), Some(Space::new(Bishop, true)), Some(Space::new(Knight, true)), Some(Space::new(Rook, true))],
-    [Some(Space::new(Pawn, true)); 8],
-    [None; 8],
-    [None; 8],
-    [None; 8],
-    [None; 8],
+static mut BOARD: [[Option<Space>; 8]; 8] =
+    [[Some(Space::new(Rook, false)), Some(Space::new(Knight, false)), Some(Space::new(Bishop, false)), Some(Space::new(King, false)),
+      Some(Space::new(Queen, false)), Some(Space::new(Bishop, false)), Some(Space::new(Knight, false)), Some(Space::new(Rook, false))],
     [Some(Space::new(Pawn, false)); 8],
-    [Some(Space::new(Rook, false)), Some(Space::new(Knight, false)), Some(Space::new(Bishop, false)), Some(Space::new(King, false)),
-     Some(Space::new(Queen, false)), Some(Space::new(Bishop, false)), Some(Space::new(Knight, false)), Some(Space::new(Rook, false))]
+    [None; 8],
+    [None; 8],
+    [None; 8],
+    [None; 8],
+    [None; 8],
+    [Some(Space::new(Rook, true)), Some(Space::new(Knight, true)), Some(Space::new(Bishop, true)), Some(Space::new(King, true)),
+     Some(Space::new(Queen, true)), Some(Space::new(Bishop, true)), Some(Space::new(Knight, true)), Some(Space::new(Rook, true))]
     ];
 
 // gets the Piece at the given input space.
@@ -34,7 +36,9 @@ pub fn read_board(x: usize, y: usize) -> Result<Option<Space>, &'static str> {
         return Err("Index out of Bounds!");
     }
 
-    Ok(BOARD[y - 1][x - 1])
+    unsafe {
+        Ok(BOARD[y - 1][x - 1])
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -61,6 +65,14 @@ impl Into<char> for Piece {
     }
 }
 
+pub enum PieceInteraction {
+    Empty,
+    Enemy
+}
+
+
+
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Space (pub Piece, pub bool);
 
@@ -69,12 +81,11 @@ impl Space {
         Space(piece, is_white)
     }
 
-    fn test_line(x:usize, y:usize, dx: isize, dy: isize, is_white: bool, vector: &mut Vec<(usize, usize)>) {
+    fn test_line(x:usize, y:usize, dx: isize, dy: isize, is_white: bool, vector: &mut Vec<(usize, usize, PieceInteraction)>) {
 
         let mut index: isize = 1;
-        let mut not_ended = true;
 
-        while not_ended {
+        loop {
 
             let (cx, cy): (usize, usize) =
                 ((isize::try_from(x).unwrap() + (index * dx)).try_into().unwrap(),
@@ -85,27 +96,22 @@ impl Space {
 
             if let Ok(Some(p)) = space {
                 if p.1 != is_white {
-                    vector.push((cx, cy));
-                    not_ended = false;
-                    println!("enemy space");
+                    vector.push((cx, cy, PieceInteraction::Enemy));
+                    return;
                 } else {
-                    not_ended = false;
-                    println!("ally space");
+                    return;
                 }
             } else if let Ok(None) = space {
-                vector.push((cx, cy));
-                println!("Empty Space");
+                vector.push((cx, cy, PieceInteraction::Empty));
             } else {
-                println!("err");
-                not_ended = false;
+                return;
             }
             index = index + 1;
         }
     }
 
-
-    pub fn move_list(&self, x: usize, y: usize) -> Vec<(usize, usize)> {
-        let mut vector: Vec<(usize, usize)> = Vec::new();
+    pub fn move_list(&self, x: usize, y: usize) -> Vec<(usize, usize, PieceInteraction)> {
+        let mut vector: Vec<(usize, usize, PieceInteraction)> = Vec::new();
 
         match self.0 {
 
@@ -120,7 +126,7 @@ impl Space {
 
                 if let Ok(space) = read_board(x, m) {
                     if space == None {
-                        vector.push((x, m));
+                        vector.push((x, m, PieceInteraction::Empty));
                     }
                 }
 
@@ -128,13 +134,13 @@ impl Space {
 
                 if let Ok(Some(p)) = read_board(x-1, m) {
                     if p.1 != self.1 {
-                        vector.push((x-1, m));
+                        vector.push((x-1, m, PieceInteraction::Enemy));
                     }
                 }
 
                 if let Ok(Some(p)) = read_board(x+1, m) {
                     if p.1 != self.1 {
-                        vector.push((x+1, m));
+                        vector.push((x+1, m, PieceInteraction::Enemy));
                     }
                 }
             },

@@ -3,7 +3,7 @@
 
 
 
-use crate::state::{Space};
+use crate::state::{Space, PieceInteraction};
 use ratatui::{
     layout::Rect,
     buffer::{Buffer, Cell},
@@ -77,11 +77,11 @@ fn write_cell(cells: &mut Vec<Cell>, is_dark: &bool, color: FColor, c: char) -> 
 }
 
 // stands for "board position to vector cell"
-fn bpvc(x: u8, y: u8) -> usize {
-    return (((y) * 10) + x) as usize * 3;
+fn bpvc(x: usize, y: usize) -> usize {
+    return (((y) * 10) + x) * 3;
 }
 
-fn set_background_color(x: u8, y: u8, color: Color, cells: &mut Vec<Cell>) {
+fn set_background_color(x: usize, y: usize, color: Color, cells: &mut Vec<Cell>) {
 
     let i = bpvc(x, y);
     cells[i].set_bg(color);
@@ -109,7 +109,7 @@ impl Widget for DisplayState<'_> {
 
         // render board and side numbers.
         let mut row_n:usize = 8;
-        for row in self.board.iter().rev() {
+        for row in self.board.iter() {
 
             row_n = row_n - 1;
             let n = ['1', '2', '3', '4', '5', '6', '7', '8'][row_n];
@@ -141,11 +141,38 @@ impl Widget for DisplayState<'_> {
 
         // renders cursors.
 
+
         if let Some(c) = self.user.mouse_cursor {
             set_background_color(c[0], c[1], Color::Rgb(128, 128, 255), &mut cells);
         }
         if let Some(c) = self.user.selected {
             set_background_color(c[0], c[1], Color::Rgb(220,139,0), &mut cells);
+
+            // set colors of possible moves.
+            if let Ok(Some(space)) = crate::state::read_board(c[0] as usize, c[1] as usize) {
+                for mov in space.move_list(c[0] as usize, c[1] as usize) {
+
+
+                    set_background_color(mov.0, mov.1, match mov.2 {
+
+                        PieceInteraction::Empty => Color::Rgb(13, 255, 00),
+                        PieceInteraction::Enemy => Color::Rgb(255, 70, 70)
+
+                    }, &mut cells);
+
+
+
+
+
+
+
+                }
+
+            }
+
+
+
+
         }
 
         if let CursorBlink::On(_) | CursorBlink::Cooldown(_) = self.user.cursor_blink {

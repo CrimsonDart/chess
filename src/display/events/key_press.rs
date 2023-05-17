@@ -67,7 +67,7 @@ pub fn event(e: KeyEvent, user: &mut UserState) {
 fn act(action: Action, user: &mut UserState) {
     let cursor = &mut user.key_cursor;
 
-    user.cursor_blink = CursorBlink::Cooldown(250);
+    user.cursor_blink = CursorBlink::Cooldown(25);
 
     use Action::*;
     match action {
