@@ -1,7 +1,7 @@
 
-use crossterm::{event::{MouseEvent, MouseEventKind}};
+use crossterm::{event::{MouseEvent}};
 
-pub fn event(e: MouseEvent) {
+pub fn event(_e: MouseEvent) {
 
 
 

@@ -3,7 +3,7 @@
 
 
 
-use crate::state::{Piece, Space};
+use crate::state::{Space};
 use ratatui::{
     layout::Rect,
     buffer::{Buffer, Cell},
@@ -11,15 +11,18 @@ use ratatui::{
     style::{Style, Color, Modifier}
 };
 
+use super::events::CursorBlink;
 
 
-pub struct DisplayState {
+
+pub struct DisplayState<'a> {
     pub board: &'static [[Option<Space> ;8]; 8],
+    pub user: &'a super::events::UserState,
 }
 
 
 
-impl DisplayState {
+impl DisplayState<'_> {
     pub fn get_rect() -> Rect {
         Rect { x: 5, y: 5, width: 30, height: 10 }
     }
@@ -73,13 +76,26 @@ fn write_cell(cells: &mut Vec<Cell>, is_dark: &bool, color: FColor, c: char) -> 
     !is_dark
 }
 
+// stands for "board position to vector cell"
+fn bpvc(x: u8, y: u8) -> usize {
+    return (((y) * 10) + x) as usize * 3;
+}
+
+fn set_background_color(x: u8, y: u8, color: Color, cells: &mut Vec<Cell>) {
+
+    let i = bpvc(x, y);
+    cells[i].set_bg(color);
+    cells[i + 1].set_bg(color);
+    cells[i + 2].set_bg(color);
+}
+
 // each grid space will be rendered 3 cells wide, with a char in the center.
 // the chess board is 8x8 spaces, and will be bordered by a numbered legend (or whatever you call it).
 
 // the board will be 24 cells wide, 8 tall
 // including the border, it is 30 wide, 10 tall.
 
-impl Widget for DisplayState {
+impl Widget for DisplayState<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
 
         let mut is_dark = false;
@@ -121,6 +137,23 @@ impl Widget for DisplayState {
         for c in top_bottom_row.chars() {
             is_dark = write_cell(&mut cells, &is_dark, FColor::Auto, c);
         }
+
+
+        // renders cursors.
+
+        if let Some(c) = self.user.mouse_cursor {
+            set_background_color(c[0], c[1], Color::Rgb(128, 128, 255), &mut cells);
+        }
+        if let Some(c) = self.user.selected {
+            set_background_color(c[0], c[1], Color::Rgb(220,139,0), &mut cells);
+        }
+
+        if let CursorBlink::On(_) | CursorBlink::Cooldown(_) = self.user.cursor_blink {
+            set_background_color(self.user.key_cursor[0], self.user.key_cursor[1], Color::Rgb(23,74,255), &mut cells);
+        }
+
+
+
 
         // maps the local Vec<Cell> to the full terminal buffer.
         let mut i = 0;
