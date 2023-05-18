@@ -1,7 +1,10 @@
 
+use std::time::{SystemTime, Instant};
+
 use crossterm::{event::{KeyEvent, KeyCode}};
 
-use crate::display::events::CursorBlink;
+
+use crate::state::{read_board, move_piece};
 
 use super::UserState;
 
@@ -67,7 +70,8 @@ pub fn event(e: KeyEvent, user: &mut UserState) {
 fn act(action: Action, user: &mut UserState) {
     let cursor = &mut user.key_cursor;
 
-    user.cursor_blink = CursorBlink::Cooldown(25);
+    user.cursor_blink = true;
+    user.blink_timer = Instant::now();
 
     use Action::*;
     match action {
@@ -93,19 +97,37 @@ fn act(action: Action, user: &mut UserState) {
         },
         Select => {
 
-            let selection = if let Some(c) = user.mouse_cursor {
+            let cursor = if let Some(c) = user.mouse_cursor {
                 c
             } else {
                 user.key_cursor
             };
 
             if let Some(arr) = user.selected {
-                if arr == selection {
+
+
+
+                // deselect the space if the user selects it again.
+                if arr == cursor {
                     user.selected = Option::None;
                     return;
+
+
+                }
+
+
+                // if the user DOESNT select the same space twice...
+                else {
+
+
+                    if let Ok(_) = move_piece(arr[0], arr[1], cursor[0], cursor[1]) {
+                        user.selected = Option::None;
+                        return;
+
+                    }
                 }
             }
-            user.selected = Some(selection);
+            user.selected = Some(cursor);
         },
         None => ()
     }

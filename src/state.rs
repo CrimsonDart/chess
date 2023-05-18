@@ -1,5 +1,4 @@
-use Piece::*;
-use std::fmt::{Display, Formatter, Error};
+use PieceType::*;
 
 
 
@@ -7,30 +6,36 @@ use std::fmt::{Display, Formatter, Error};
 
 
 
-pub fn get_board() -> &'static [[Option<Space>; 8]; 8] {
+pub fn get_board() -> &'static [[Space; 8]; 8] {
     unsafe {
         &BOARD
     }
 }
 
-static mut BOARD: [[Option<Space>; 8]; 8] =
-    [[Some(Space::new(Rook, false)), Some(Space::new(Knight, false)), Some(Space::new(Bishop, false)), Some(Space::new(King, false)),
-      Some(Space::new(Queen, false)), Some(Space::new(Bishop, false)), Some(Space::new(Knight, false)), Some(Space::new(Rook, false))],
-    [Some(Space::new(Pawn, false)); 8],
+pub type Space = Option<Piece>;
+
+const fn space_new(piece_type: PieceType, is_white: bool) -> Space {
+    Some(Piece::new(piece_type, is_white))
+}
+
+static mut BOARD: [[Space; 8]; 8] =
+    [[space_new(Rook, false), space_new(Knight, false), space_new(Bishop, false), space_new(King, false),
+      space_new(Queen, false), space_new(Bishop, false), space_new(Knight, false), space_new(Rook, false)],
+    [space_new(Pawn, false); 8],
     [None; 8],
     [None; 8],
     [None; 8],
     [None; 8],
     [None; 8],
-    [Some(Space::new(Rook, true)), Some(Space::new(Knight, true)), Some(Space::new(Bishop, true)), Some(Space::new(King, true)),
-     Some(Space::new(Queen, true)), Some(Space::new(Bishop, true)), Some(Space::new(Knight, true)), Some(Space::new(Rook, true))]
+    [space_new(Rook, true), space_new(Knight, true), space_new(Bishop, true), space_new(King, true),
+     space_new(Queen, true), space_new(Bishop, true), space_new(Knight, true), space_new(Rook, true)]
     ];
 
 // gets the Piece at the given input space.
 // returns Err if out of bounds, returns Ok(None) if empty.
 //
 // coordinates are real board space, not zeroed.
-pub fn read_board(x: usize, y: usize) -> Result<Option<Space>, &'static str> {
+pub fn read_board(x: usize, y: usize) -> Result<Space, &'static str> {
 
     if x < 1 || x > 8 || y < 1 || y > 8 {
         return Err("Index out of Bounds!");
@@ -41,8 +46,60 @@ pub fn read_board(x: usize, y: usize) -> Result<Option<Space>, &'static str> {
     }
 }
 
+pub fn write_board(x: usize, y: usize, space: Space) -> Result<(), &'static str> {
+
+    if x < 1 || x > 8 || y < 1 || y > 8 {
+        return Err("Index out of Bounds!");
+    }
+
+    unsafe {
+        BOARD[y - 1][x -1] = space;
+        Ok(())
+    }
+}
+
+pub fn move_piece(fx: usize, fy: usize, tx: usize, ty: usize) -> Result<(), &'static str> {
+
+
+    let from = read_board(fx, fy)?;
+    let to = read_board(tx, ty)?;
+
+    if let None = from {
+        return Err("\"From\" piece is Empty!");
+    }
+
+    let from = from.unwrap();
+
+    let move_list = from.move_list(fx, fy);
+    let mut is_valid = false;
+
+    for valid_move in move_list {
+        if valid_move.0 == fx && valid_move.1 == fy {
+            is_valid = true;
+            break;
+        }
+    };
+
+    if !is_valid {
+        return Err("No valid moves available");
+    }
+
+    if let Some(to) = to {
+        if from.1 == to.1 {
+            return Err("Colors of both pieces are the same!");
+        }
+    }
+    write_board(fx, fy, None)?;
+    write_board(tx, ty, Some(from))?;
+
+    Ok(())
+}
+
+
+
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Piece {
+pub enum PieceType {
     Pawn,
     Rook,
     Knight,
@@ -51,7 +108,7 @@ pub enum Piece {
     King
 }
 
-impl Into<char> for Piece {
+impl Into<char> for PieceType {
     fn into(self) -> char {
 
         match self {
@@ -70,15 +127,12 @@ pub enum PieceInteraction {
     Enemy
 }
 
-
-
-
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Space (pub Piece, pub bool);
+pub struct Piece (pub PieceType, pub bool);
 
-impl Space {
-    pub const fn new(piece: Piece, is_white: bool) -> Self {
-        Space(piece, is_white)
+impl Piece {
+    pub const fn new(piece: PieceType, is_white: bool) -> Self {
+        Piece(piece, is_white)
     }
 
     fn test_line(x:usize, y:usize, dx: isize, dy: isize, is_white: bool, vector: &mut Vec<(usize, usize, PieceInteraction)>) {
@@ -146,47 +200,22 @@ impl Space {
             },
 
             Rook => {
-                Space::test_line(x, y, 0, 1, self.1, &mut vector);
-                Space::test_line(x, y, 0, -1, self.1, &mut vector);
-                Space::test_line(x, y, -1, 0, self.1, &mut vector);
-                Space::test_line(x, y, 1, 0, self.1, &mut vector);
+                Piece::test_line(x, y, 0, 1, self.1, &mut vector);
+                Piece::test_line(x, y, 0, -1, self.1, &mut vector);
+                Piece::test_line(x, y, -1, 0, self.1, &mut vector);
+                Piece::test_line(x, y, 1, 0, self.1, &mut vector);
             }
             Knight => {/*TODO*/},
             Bishop => {
-                Space::test_line(x, y, 1, 1, self.1, &mut vector);
-                Space::test_line(x, y, -1, 1, self.1, &mut vector);
-                Space::test_line(x, y, 1, -1, self.1, &mut vector);
-                Space::test_line(x, y, -1, -1, self.1, &mut vector);
+                Piece::test_line(x, y, 1, 1, self.1, &mut vector);
+                Piece::test_line(x, y, -1, 1, self.1, &mut vector);
+                Piece::test_line(x, y, 1, -1, self.1, &mut vector);
+                Piece::test_line(x, y, -1, -1, self.1, &mut vector);
 
             }
-
-
 
             _ => ()
         }
         vector
     }
-
 }
-
-impl Display for Space {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f, "{}{}",
-               if self.1 {
-                   "W"
-               } else {
-                   "B"
-               },
-
-               match self.0 {
-                   Pawn => "P",
-                   Rook => "R",
-                   Knight => "N",
-                   Bishop => "B",
-                   Queen => "Q",
-                   King => "K"
-               }
-        )
-    }
-}
-

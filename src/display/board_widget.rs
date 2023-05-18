@@ -3,7 +3,7 @@
 
 
 
-use crate::state::{Space, PieceInteraction};
+use crate::state::{Space, Piece, PieceType, PieceInteraction};
 use ratatui::{
     layout::Rect,
     buffer::{Buffer, Cell},
@@ -11,12 +11,11 @@ use ratatui::{
     style::{Style, Color, Modifier}
 };
 
-use super::events::CursorBlink;
 
 
 
 pub struct DisplayState<'a> {
-    pub board: &'static [[Option<Space> ;8]; 8],
+    pub board: &'static [[Space ;8]; 8],
     pub user: &'a super::events::UserState,
 }
 
@@ -175,7 +174,7 @@ impl Widget for DisplayState<'_> {
 
         }
 
-        if let CursorBlink::On(_) | CursorBlink::Cooldown(_) = self.user.cursor_blink {
+        if self.user.cursor_blink {
             set_background_color(self.user.key_cursor[0], self.user.key_cursor[1], Color::Rgb(23,74,255), &mut cells);
         }
 
