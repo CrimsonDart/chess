@@ -21,7 +21,7 @@ const fn space_new(piece_type: PieceType, is_white: bool) -> Space {
 static mut BOARD: [[Space; 8]; 8] =
     [[space_new(Rook, false), space_new(Knight, false), space_new(Bishop, false), space_new(King, false),
       space_new(Queen, false), space_new(Bishop, false), space_new(Knight, false), space_new(Rook, false)],
-    [space_new(Pawn, false); 8],
+    [space_new(Pawn(false), false); 8],
     [None; 8],
     [None; 8],
     [None; 8],
@@ -58,8 +58,9 @@ pub fn write_board(x: usize, y: usize, space: Space) -> Result<(), &'static str>
     }
 }
 
+// Tries to move a piece from [fx, fy] to [tx, ty]
+// returns an error if unsuccsessful.
 pub fn move_piece(fx: usize, fy: usize, tx: usize, ty: usize) -> Result<(), &'static str> {
-
 
     let from = read_board(fx, fy)?;
     let to = read_board(tx, ty)?;
@@ -69,16 +70,16 @@ pub fn move_piece(fx: usize, fy: usize, tx: usize, ty: usize) -> Result<(), &'st
     }
 
     let from = from.unwrap();
-
-    let move_list = from.move_list(fx, fy);
     let mut is_valid = false;
+    let mut interaction = PieceInteraction::Empty;
 
-    for valid_move in move_list {
-        if valid_move.0 == fx && valid_move.1 == fy {
+    for valid_move in from.move_list(fx, fy) {
+        if valid_move.0 == tx && valid_move.1 == ty {
             is_valid = true;
+            interaction = valid_move.2;
             break;
         }
-    };
+    }
 
     if !is_valid {
         return Err("No valid moves available");
@@ -89,18 +90,21 @@ pub fn move_piece(fx: usize, fy: usize, tx: usize, ty: usize) -> Result<(), &'st
             return Err("Colors of both pieces are the same!");
         }
     }
+
     write_board(fx, fy, None)?;
-    write_board(tx, ty, Some(from))?;
 
-    Ok(())
+    // if the movement was a Pawn Skip, (which can be performed only once)
+    // disables the pawn skip.
+    return if let PieceInteraction::PawnSkip = interaction {
+        write_board(tx, ty, Some(Piece(PieceType::Pawn(true), from.1)))
+    } else {
+        write_board(tx, ty, Some(from))
+    };
 }
-
-
-
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PieceType {
-    Pawn,
+    Pawn(bool),
     Rook,
     Knight,
     Bishop,
@@ -112,7 +116,7 @@ impl Into<char> for PieceType {
     fn into(self) -> char {
 
         match self {
-            Pawn => 'P',
+            Pawn(_) => 'P',
             Rook => 'R',
             Knight => 'N',
             Bishop => 'B',
@@ -122,9 +126,11 @@ impl Into<char> for PieceType {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PieceInteraction {
     Empty,
-    Enemy
+    Enemy,
+    PawnSkip
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -133,6 +139,22 @@ pub struct Piece (pub PieceType, pub bool);
 impl Piece {
     pub const fn new(piece: PieceType, is_white: bool) -> Self {
         Piece(piece, is_white)
+    }
+
+    // tests at a location (x, y) if the attacking piece is able to move there.
+    // tests for opposite teams, and if the space is empty.
+    fn test_at(x:usize, y:usize, is_white: bool) -> Option<PieceInteraction> {
+
+        let space = read_board(x, y);
+
+        if let Ok(Some(p)) = space {
+            if p.1 != is_white {
+                return Some(PieceInteraction::Enemy);
+            }
+        } else if let Ok(None) = space {
+            return Some(PieceInteraction::Empty);
+        }
+        return None;
     }
 
     fn test_line(x:usize, y:usize, dx: isize, dy: isize, is_white: bool, vector: &mut Vec<(usize, usize, PieceInteraction)>) {
@@ -145,20 +167,15 @@ impl Piece {
                 ((isize::try_from(x).unwrap() + (index * dx)).try_into().unwrap(),
                                             (isize::try_from(y).unwrap() + (index * dy)).try_into().unwrap());
 
-
             let space = read_board(cx, cy);
 
-            if let Ok(Some(p)) = space {
-                if p.1 != is_white {
-                    vector.push((cx, cy, PieceInteraction::Enemy));
-                    return;
-                } else {
-                    return;
+            if let Some(interaction) = Self::test_at(cx, cy, is_white) {
+                vector.push((cx, cy, interaction));
+                if let PieceInteraction::Enemy = interaction {
+                    break;
                 }
-            } else if let Ok(None) = space {
-                vector.push((cx, cy, PieceInteraction::Empty));
             } else {
-                return;
+                break;
             }
             index = index + 1;
         }
@@ -169,7 +186,7 @@ impl Piece {
 
         match self.0 {
 
-            Pawn => {
+            Pawn(is_skipped) => {
 
                 // pushes the space in front of the pawn, if empty
 
@@ -181,6 +198,14 @@ impl Piece {
                 if let Ok(space) = read_board(x, m) {
                     if space == None {
                         vector.push((x, m, PieceInteraction::Empty));
+                    }
+                }
+
+                if !is_skipped {
+                    if let Ok(space) = read_board(x, y + 2) {
+                        if space == None {
+                            vector.push((x, y + 2, PieceInteraction::PawnSkip));
+                        }
                     }
                 }
 
@@ -205,7 +230,56 @@ impl Piece {
                 Piece::test_line(x, y, -1, 0, self.1, &mut vector);
                 Piece::test_line(x, y, 1, 0, self.1, &mut vector);
             }
-            Knight => {/*TODO*/},
+            Knight => {
+                let mut buf: Vec<(isize, isize)> = Vec::new();
+
+                let (x, y): (isize, isize) = (x as isize, y as isize);
+
+                for x_is_1 in [true, false] {
+                    let (dx, dy) = if x_is_1 {
+                        (1, 2)
+                    } else {
+                        (2, 1)
+                    };
+
+                    for is_x_neg in [true, false] {
+                        let (dx, dy) = if is_x_neg {
+                            (dx * -1, dy)
+                        } else {
+                            (dx, dy)
+                        };
+                        for is_y_neg in [true, false] {
+
+                            if is_y_neg {
+                                buf.push((x + dx, y + (dy * -1)));
+                            } else {
+                                buf.push((x + dx, y + dy));
+                            }
+                        }
+                    }
+                }
+
+                for pair in buf {
+                    let (dx, dy) = (pair.0 as usize, pair.1 as usize);
+
+
+
+
+                    if let Some(interaction) = Self::test_at(dx, dy, self.1) {
+                        vector.push((dx, dy, interaction));
+                    }
+                }
+
+
+
+
+
+
+
+
+
+
+            },
             Bishop => {
                 Piece::test_line(x, y, 1, 1, self.1, &mut vector);
                 Piece::test_line(x, y, -1, 1, self.1, &mut vector);

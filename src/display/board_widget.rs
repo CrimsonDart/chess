@@ -154,7 +154,7 @@ impl Widget for DisplayState<'_> {
 
                     set_background_color(mov.0, mov.1, match mov.2 {
 
-                        PieceInteraction::Empty => Color::Rgb(13, 255, 00),
+                        PieceInteraction::Empty | PieceInteraction::PawnSkip => Color::Rgb(13, 255, 00),
                         PieceInteraction::Enemy => Color::Rgb(255, 70, 70)
 
                     }, &mut cells);
