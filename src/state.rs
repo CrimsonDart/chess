@@ -130,7 +130,8 @@ impl Into<char> for PieceType {
 pub enum PieceInteraction {
     Empty,
     Enemy,
-    PawnSkip
+    PawnSkip,
+    KingRookSwap
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -166,8 +167,6 @@ impl Piece {
             let (cx, cy): (usize, usize) =
                 ((isize::try_from(x).unwrap() + (index * dx)).try_into().unwrap(),
                                             (isize::try_from(y).unwrap() + (index * dy)).try_into().unwrap());
-
-            let space = read_board(cx, cy);
 
             if let Some(interaction) = Self::test_at(cx, cy, is_white) {
                 vector.push((cx, cy, interaction));
@@ -261,34 +260,39 @@ impl Piece {
 
                 for pair in buf {
                     let (dx, dy) = (pair.0 as usize, pair.1 as usize);
-
-
-
-
                     if let Some(interaction) = Self::test_at(dx, dy, self.1) {
                         vector.push((dx, dy, interaction));
                     }
                 }
-
-
-
-
-
-
-
-
-
-
             },
             Bishop => {
                 Piece::test_line(x, y, 1, 1, self.1, &mut vector);
                 Piece::test_line(x, y, -1, 1, self.1, &mut vector);
                 Piece::test_line(x, y, 1, -1, self.1, &mut vector);
                 Piece::test_line(x, y, -1, -1, self.1, &mut vector);
+            },
+            Queen => {
+                Piece::test_line(x, y, 1, 1, self.1, &mut vector);
+                Piece::test_line(x, y, -1, 1, self.1, &mut vector);
+                Piece::test_line(x, y, 1, -1, self.1, &mut vector);
+                Piece::test_line(x, y, -1, -1, self.1, &mut vector);
+                Piece::test_line(x, y, 0, 1, self.1, &mut vector);
+                Piece::test_line(x, y, 0, -1, self.1, &mut vector);
+                Piece::test_line(x, y, -1, 0, self.1, &mut vector);
+                Piece::test_line(x, y, 1, 0, self.1, &mut vector);
+            },
+            King => {
+                let (x, y): (isize, isize) = (x as isize, y as isize);
+                const arr: [isize; 2] = [-1, 1];
+                for dx in arr{
+                    for dy in arr {
+                        if let Some(_) = Self::test_at((x + dx) as usize, (y + dy) as usize, self.1) {
+                            vector.push(((x + dx) as usize, (y + dy) as usize, PieceInteraction::Empty));
+                        }
+                    }
+                }
 
             }
-
-            _ => ()
         }
         vector
     }

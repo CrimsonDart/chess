@@ -105,25 +105,21 @@ fn act(action: Action, user: &mut UserState) {
 
             if let Some(arr) = user.selected {
 
-
-
                 // deselect the space if the user selects it again.
                 if arr == cursor {
                     user.selected = Option::None;
                     return;
-
-
                 }
-
-
                 // if the user DOESNT select the same space twice...
                 else {
-
-
+                    // if the move is successful (no error)
                     if let Ok(_) = move_piece(arr[0], arr[1], cursor[0], cursor[1]) {
                         user.selected = Option::None;
                         return;
 
+                    } else {
+                        user.selected = Option::None;
+                        return;
                     }
                 }
             }
