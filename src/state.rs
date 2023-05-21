@@ -282,18 +282,85 @@ impl Piece {
                 Piece::test_line(x, y, 1, 0, self.1, &mut vector);
             },
             King => {
-                let (x, y): (isize, isize) = (x as isize, y as isize);
-                const arr: [isize; 2] = [-1, 1];
-                for dx in arr{
-                    for dy in arr {
-                        if let Some(_) = Self::test_at((x + dx) as usize, (y + dy) as usize, self.1) {
-                            vector.push(((x + dx) as usize, (y + dy) as usize, PieceInteraction::Empty));
+                use Direction::*;
+                let arr = [North, South, East, West];
+
+                for dir in arr {
+
+                    let pair = match dir.translate(x, y) {
+                        Some(pp) => pp,
+                        None => continue
+                    };
+
+                    if let Some(interaction) = 'testat: {
+
+                        let space = read_board(x, y);
+
+                        if let Ok(Some(p)) = space {
+                            if p.1 != self.1 {
+                                break 'testat Some(PieceInteraction::Enemy);
+                            } else if p.1 == self.1 && p.0 == PieceType::Rook {
+                                break 'testat Some(PieceInteraction::KingRookSwap);
+                            }
+                        } else if let Ok(None) = space {
+                            break 'testat Some(PieceInteraction::Empty);
                         }
+                        None
+                    } {
+                        vector.push((pair.0, pair.1, interaction));
                     }
+
+
+
+
+
+
                 }
+
+
+
+
+
 
             }
         }
         vector
+    }
+}
+
+ enum Direction {
+     North,
+     South,
+     East,
+     West,
+     NW,
+     NE,
+     SW,
+     SE
+ }
+
+impl Direction {
+    pub fn translate(&self, x: usize, y: usize) -> Option<(usize, usize)> {
+
+        if x == 0 || y == 0 {
+            return None;
+        }
+
+        use Direction::*;
+        let (x, y) = match self {
+            North => (x, y + 1),
+            South => (x, y-1),
+            East => (x + 1, y),
+            West => (x-1, y),
+            NW => (x-1, y + 1),
+            NE => (x + 1, y +1),
+            SW => (x-1, y-1),
+            SE => (x + 1, y-1)
+        };
+
+
+
+
+        return Some((x, y));
     }
 }
