@@ -1,11 +1,5 @@
 use PieceType::*;
 
-
-
-
-
-
-
 pub fn get_board() -> &'static [[Space; 8]; 8] {
     unsafe {
         &BOARD
@@ -35,32 +29,32 @@ static mut BOARD: [[Space; 8]; 8] =
 // returns Err if out of bounds, returns Ok(None) if empty.
 //
 // coordinates are real board space, not zeroed.
-pub fn read_board(x: usize, y: usize) -> Result<Space, &'static str> {
+pub fn read_board(x: isize, y: isize) -> Result<Space, &'static str> {
 
     if x < 1 || x > 8 || y < 1 || y > 8 {
         return Err("Index out of Bounds!");
     }
 
     unsafe {
-        Ok(BOARD[y - 1][x - 1])
+        Ok(BOARD[y as usize - 1][x as usize - 1])
     }
 }
 
-pub fn write_board(x: usize, y: usize, space: Space) -> Result<(), &'static str> {
+pub fn write_board(x: isize, y: isize, space: Space) -> Result<(), &'static str> {
 
     if x < 1 || x > 8 || y < 1 || y > 8 {
         return Err("Index out of Bounds!");
     }
 
     unsafe {
-        BOARD[y - 1][x -1] = space;
+        BOARD[y as usize - 1][x as usize - 1] = space;
         Ok(())
     }
 }
 
 // Tries to move a piece from [fx, fy] to [tx, ty]
 // returns an error if unsuccsessful.
-pub fn move_piece(fx: usize, fy: usize, tx: usize, ty: usize) -> Result<(), &'static str> {
+pub fn move_piece(fx: isize, fy: isize, tx: isize, ty: isize) -> Result<(), &'static str> {
 
     let from = read_board(fx, fy)?;
     let to = read_board(tx, ty)?;
@@ -85,16 +79,25 @@ pub fn move_piece(fx: usize, fy: usize, tx: usize, ty: usize) -> Result<(), &'st
         return Err("No valid moves available");
     }
 
-    if let Some(to) = to {
-        if from.1 == to.1 {
-            return Err("Colors of both pieces are the same!");
-        }
-    }
-
     write_board(fx, fy, None)?;
 
     // if the movement was a Pawn Skip, (which can be performed only once)
     // disables the pawn skip.
+
+    use PieceInteraction::*;
+    return match interaction {
+        PawnSkip => write_board(tx, ty, Some(Piece(PieceType::Pawn(true), from.1))),
+        KingRookSwap => {
+            write_board(tx, ty, Some(from)).ok();
+            write_board(fx, fy, to)
+        },
+        _ => {
+            write_board(tx, ty, Some(from))
+        }
+    };
+
+
+
     return if let PieceInteraction::PawnSkip = interaction {
         write_board(tx, ty, Some(Piece(PieceType::Pawn(true), from.1)))
     } else {
@@ -131,7 +134,9 @@ pub enum PieceInteraction {
     Empty,
     Enemy,
     PawnSkip,
-    KingRookSwap
+    KingRookSwap,
+    Ally,
+    OutOfBounds
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -142,46 +147,68 @@ impl Piece {
         Piece(piece, is_white)
     }
 
-    // tests at a location (x, y) if the attacking piece is able to move there.
+    // tests at a location (tx, ty) if the attacking piece is able to move there.
     // tests for opposite teams, and if the space is empty.
-    fn test_at(x:usize, y:usize, is_white: bool) -> Option<PieceInteraction> {
+    fn test_at(&self, tx: isize, ty: isize) -> PieceInteraction {
 
-        let space = read_board(x, y);
+        let space = read_board(tx, ty);
 
-        if let Ok(Some(p)) = space {
-            if p.1 != is_white {
-                return Some(PieceInteraction::Enemy);
+
+        use PieceInteraction::*;
+        return match space {
+            Ok(Some(p)) => {
+                if p.1 == self.1 {
+                    if self.0 == PieceType::Rook && p.0 == PieceType::King {
+                        return KingRookSwap;
+                    }
+                    return Ally;
+                }
+                Enemy
+            },
+            Ok(None) => {
+                Empty
+            },
+            Err(_) => {
+                OutOfBounds
             }
-        } else if let Ok(None) = space {
-            return Some(PieceInteraction::Empty);
-        }
-        return None;
+        };
     }
 
-    fn test_line(x:usize, y:usize, dx: isize, dy: isize, is_white: bool, vector: &mut Vec<(usize, usize, PieceInteraction)>) {
+    fn test_line(&self, x:isize, y:isize, direction: Direction, vector: &mut Vec<(isize, isize, PieceInteraction)>) {
 
         let mut index: isize = 1;
 
-        loop {
+        while index < 9 {
 
-            let (cx, cy): (usize, usize) =
-                ((isize::try_from(x).unwrap() + (index * dx)).try_into().unwrap(),
-                                            (isize::try_from(y).unwrap() + (index * dy)).try_into().unwrap());
+            let (tx, ty) = direction.translate(x, y, index);
+            use PieceInteraction::*;
+            let interaction = self.test_at(tx, ty);
+            match interaction {
 
-            if let Some(interaction) = Self::test_at(cx, cy, is_white) {
-                vector.push((cx, cy, interaction));
-                if let PieceInteraction::Enemy = interaction {
+                Enemy | KingRookSwap => {
+                    vector.push((tx, ty, interaction));
+                    break;
+                },
+                Empty => {
+                    vector.push((tx, ty, Empty));
+                },
+                PawnSkip => {
+                    panic!("called PAWNSKIP in TEST LINE... wtf happened???");
+                },
+                Ally => {
+                    break;
+                },
+                OutOfBounds => {
                     break;
                 }
-            } else {
-                break;
             }
+
             index = index + 1;
         }
     }
 
-    pub fn move_list(&self, x: usize, y: usize) -> Vec<(usize, usize, PieceInteraction)> {
-        let mut vector: Vec<(usize, usize, PieceInteraction)> = Vec::new();
+    pub fn move_list(&self, x: isize, y: isize) -> Vec<(isize, isize, PieceInteraction)> {
+        let mut vector: Vec<(isize, isize, PieceInteraction)> = Vec::new();
 
         match self.0 {
 
@@ -224,10 +251,10 @@ impl Piece {
             },
 
             Rook => {
-                Piece::test_line(x, y, 0, 1, self.1, &mut vector);
-                Piece::test_line(x, y, 0, -1, self.1, &mut vector);
-                Piece::test_line(x, y, -1, 0, self.1, &mut vector);
-                Piece::test_line(x, y, 1, 0, self.1, &mut vector);
+
+                for dir in Direction::CARDINALS {
+                    self.test_line(x, y, dir, &mut vector);
+                }
             }
             Knight => {
                 let mut buf: Vec<(isize, isize)> = Vec::new();
@@ -258,43 +285,40 @@ impl Piece {
                     }
                 }
 
-                for pair in buf {
-                    let (dx, dy) = (pair.0 as usize, pair.1 as usize);
-                    if let Some(interaction) = Self::test_at(dx, dy, self.1) {
-                        vector.push((dx, dy, interaction));
+                for (tx, ty) in buf {
+
+                    let interaction = self.test_at(tx, ty);
+
+                    if interaction == PieceInteraction::Ally || interaction == PieceInteraction::OutOfBounds {
+                        continue;
                     }
+                    vector.push((tx, ty, interaction));
                 }
             },
             Bishop => {
-                Piece::test_line(x, y, 1, 1, self.1, &mut vector);
-                Piece::test_line(x, y, -1, 1, self.1, &mut vector);
-                Piece::test_line(x, y, 1, -1, self.1, &mut vector);
-                Piece::test_line(x, y, -1, -1, self.1, &mut vector);
+
+                for dir in Direction::ORDINALS {
+                    self.test_line(x, y, dir, &mut vector);
+                }
+
             },
             Queen => {
-                Piece::test_line(x, y, 1, 1, self.1, &mut vector);
-                Piece::test_line(x, y, -1, 1, self.1, &mut vector);
-                Piece::test_line(x, y, 1, -1, self.1, &mut vector);
-                Piece::test_line(x, y, -1, -1, self.1, &mut vector);
-                Piece::test_line(x, y, 0, 1, self.1, &mut vector);
-                Piece::test_line(x, y, 0, -1, self.1, &mut vector);
-                Piece::test_line(x, y, -1, 0, self.1, &mut vector);
-                Piece::test_line(x, y, 1, 0, self.1, &mut vector);
+                for dir in Direction::CARDINALS {
+                    self.test_line(x, y, dir, &mut vector);
+                }
+                for dir in Direction::ORDINALS {
+                    self.test_line(x, y, dir, &mut vector);
+                }
             },
             King => {
-                use Direction::*;
-                let arr = [North, South, East, West];
 
-                for dir in arr {
+                for dir in Direction::CARDINALS {
 
-                    let pair = match dir.translate(x, y) {
-                        Some(pp) => pp,
-                        None => continue
-                    };
+                    let (dx, dy) = dir.translate(x, y, 1);
 
                     if let Some(interaction) = 'testat: {
 
-                        let space = read_board(x, y);
+                        let space = read_board(dx, dy);
 
                         if let Ok(Some(p)) = space {
                             if p.1 != self.1 {
@@ -307,27 +331,17 @@ impl Piece {
                         }
                         None
                     } {
-                        vector.push((pair.0, pair.1, interaction));
+                        vector.push((dx, dy, interaction));
                     }
-
-
-
-
-
-
                 }
-
-
-
-
-
-
             }
         }
         vector
     }
 }
 
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
  enum Direction {
      North,
      South,
@@ -337,30 +351,29 @@ impl Piece {
      NE,
      SW,
      SE
- }
+}
+
+use Direction::*;
 
 impl Direction {
-    pub fn translate(&self, x: usize, y: usize) -> Option<(usize, usize)> {
 
-        if x == 0 || y == 0 {
-            return None;
-        }
+    const CARDINALS: [Direction; 4] = [North, South, East, West];
+    const ORDINALS: [Direction; 4] = [NW, NE, SW, SE];
+
+    pub fn translate(&self, x: isize, y: isize, d: isize) -> (isize, isize) {
 
         use Direction::*;
         let (x, y) = match self {
-            North => (x, y + 1),
-            South => (x, y-1),
-            East => (x + 1, y),
-            West => (x-1, y),
-            NW => (x-1, y + 1),
-            NE => (x + 1, y +1),
-            SW => (x-1, y-1),
-            SE => (x + 1, y-1)
+            North => (x, y + d),
+            South => (x, y - d),
+            East => (x + d, y),
+            West => (x - d, y),
+            NW => (x - d, y + d),
+            NE => (x + d, y + d),
+            SW => (x - d, y - d),
+            SE => (x + d, y - d)
         };
+        return (x, y);
 
-
-
-
-        return Some((x, y));
     }
 }

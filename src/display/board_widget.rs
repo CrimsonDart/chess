@@ -76,11 +76,11 @@ fn write_cell(cells: &mut Vec<Cell>, is_dark: &bool, color: FColor, c: char) -> 
 }
 
 // stands for "board position to vector cell"
-fn bpvc(x: usize, y: usize) -> usize {
-    return (((y) * 10) + x) * 3;
+fn bpvc(x: isize, y: isize) -> usize {
+    return ((((y) * 10) + x) * 3) as usize;
 }
 
-fn set_background_color(x: usize, y: usize, color: Color, cells: &mut Vec<Cell>) {
+fn set_background_color(x: isize, y: isize, color: Color, cells: &mut Vec<Cell>) {
 
     let i = bpvc(x, y);
     cells[i].set_bg(color);
@@ -148,14 +148,18 @@ impl Widget for DisplayState<'_> {
             set_background_color(c[0], c[1], Color::Rgb(220,139,0), &mut cells);
 
             // set colors of possible moves.
-            if let Ok(Some(space)) = crate::state::read_board(c[0] as usize, c[1] as usize) {
-                for mov in space.move_list(c[0] as usize, c[1] as usize) {
+            if let Ok(Some(space)) = crate::state::read_board(c[0], c[1]) {
+
+                use PieceInteraction::*;
+                for mov in space.move_list(c[0], c[1]) {
 
 
                     set_background_color(mov.0, mov.1, match mov.2 {
 
-                        PieceInteraction::Empty | PieceInteraction::PawnSkip | PieceInteraction::KingRookSwap => Color::Rgb(13, 255, 00),
-                        PieceInteraction::Enemy => Color::Rgb(255, 70, 70)
+                        Empty | PawnSkip | KingRookSwap => Color::Rgb(13, 255, 00),
+                        Enemy => Color::Rgb(255, 70, 70),
+                        Ally | OutOfBounds => continue
+
 
                     }, &mut cells);
 

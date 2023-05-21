@@ -14,11 +14,12 @@ pub static mut BREAK_LOOP: bool = false;
 // the first space is 1,A, not 0,0.
 pub struct UserState {
 
-    pub key_cursor: [usize; 2],
-    pub mouse_cursor: Option<[usize; 2]>,
-    pub selected: Option<[usize; 2]>,
+    pub key_cursor: [isize; 2],
+    pub mouse_cursor: Option<[isize; 2]>,
+    pub selected: Option<[isize; 2]>,
     pub cursor_blink: bool,
-    pub blink_timer: Instant
+    pub blink_timer: Instant,
+    pub turn_white: bool
 
 }
 
@@ -32,7 +33,8 @@ pub fn start_event_loop(terminal: &mut TerminalC) -> crossterm::Result<()> {
         mouse_cursor: None,
         selected: None,
         cursor_blink: true,
-        blink_timer: Instant::now()
+        blink_timer: Instant::now(),
+        turn_white: true
 
     };
 

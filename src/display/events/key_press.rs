@@ -35,16 +35,11 @@ pub fn event(e: KeyEvent, user: &mut UserState) {
 
     let action = match key {
 
-
         KeyCode::Char(letter) => match letter {
-            'w' => Action::Up,
-            'k' => Action::Up,
-            'a' => Action::Left,
-            'h' => Action::Left,
-            's' => Action::Down,
-            'j' => Action::Down,
-            'd' => Action::Right,
-            'l' => Action::Right,
+            'w' | 'k' => Action::Up,
+            'a' | 'h' => Action::Left,
+            's' | 'j' => Action::Down,
+            'd' | 'l' => Action::Right,
             ' ' => Select,
             _ => Action::None
 
