@@ -92,11 +92,37 @@ fn act(action: Action, user: &mut UserState) {
         },
         Select => {
 
+
+
             let cursor = if let Some(c) = user.mouse_cursor {
                 c
             } else {
                 user.key_cursor
             };
+
+            // gets the space at the cursor location
+            let cursor_space = match read_board(cursor[0], cursor[1]) {
+                Ok(s) => s,
+                Err(_) => return
+            };
+
+            match (user.selected, cursor_space) {
+                (Some(arr), Some(piece)) => {
+                    if arr != cursor {
+                        move_piece(arr[0],arr[1], cursor[0], cursor[1])
+                    }
+                    user.selected = Option::None;
+                    return;
+                },
+                (Some(_), Option::None) | (Option::None, Option::None) => {
+                    user.selected = Some(cursor);
+                },
+                (Option::None, Some(piece)) => {
+                    if piece.1 == user.turn_white {
+                        user.selected = Some(cursor);
+                    }
+                }
+            }
 
             if let Some(arr) = user.selected {
 

@@ -54,13 +54,13 @@ pub fn write_board(x: isize, y: isize, space: Space) -> Result<(), &'static str>
 
 // Tries to move a piece from [fx, fy] to [tx, ty]
 // returns an error if unsuccsessful.
-pub fn move_piece(fx: isize, fy: isize, tx: isize, ty: isize) -> Result<(), &'static str> {
+pub fn move_piece(fx: isize, fy: isize, tx: isize, ty: isize) -> bool {
 
     let from = read_board(fx, fy)?;
     let to = read_board(tx, ty)?;
 
     if let None = from {
-        return Err("\"From\" piece is Empty!");
+        return false;
     }
 
     let from = from.unwrap();
@@ -76,7 +76,7 @@ pub fn move_piece(fx: isize, fy: isize, tx: isize, ty: isize) -> Result<(), &'st
     }
 
     if !is_valid {
-        return Err("No valid moves available");
+        return false;
     }
 
     write_board(fx, fy, None)?;
@@ -85,7 +85,7 @@ pub fn move_piece(fx: isize, fy: isize, tx: isize, ty: isize) -> Result<(), &'st
     // disables the pawn skip.
 
     use PieceInteraction::*;
-    return match interaction {
+    return match match interaction {
         PawnSkip => write_board(tx, ty, Some(Piece(PieceType::Pawn(true), from.1))),
         KingRookSwap => {
             write_board(tx, ty, Some(from)).ok();
@@ -94,6 +94,9 @@ pub fn move_piece(fx: isize, fy: isize, tx: isize, ty: isize) -> Result<(), &'st
         _ => {
             write_board(tx, ty, Some(from))
         }
+    } {
+        Ok(_) => true,
+        Err(_) => false
     };
 
 
@@ -185,15 +188,21 @@ impl Piece {
             let interaction = self.test_at(tx, ty);
             match interaction {
 
-                Enemy | KingRookSwap => {
+                Enemy => {
                     vector.push((tx, ty, interaction));
                     break;
                 },
+                KingRookSwap => if index == 1 {
+                    vector.push((tx, ty, interaction));
+                    break;
+                } else {
+                    break;
+                }
                 Empty => {
                     vector.push((tx, ty, Empty));
                 },
                 PawnSkip => {
-                    panic!("called PAWNSKIP in TEST LINE... wtf happened???");
+                    break;
                 },
                 Ally => {
                     break;
