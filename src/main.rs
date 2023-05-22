@@ -1,4 +1,5 @@
 
+#![feature(let_chains)]
 mod display;
 mod state;
 use state::*;

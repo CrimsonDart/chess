@@ -9,5 +9,6 @@ edition = "2021"
 crossterm = {version = "0.26.1", features = ["event-stream"]}
 ratatui = "0.20"
 
-
+[toolchain]
+channel = "nightly"
 #EEEEEEE
