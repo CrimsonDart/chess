@@ -1,0 +1,24 @@
+#+title: Program
+
+* GAME STATE
+the board is stored in an 8x8 two dimensional static mut array, in state.rs.
+the board is accessed through state::read_board, and state::write_board.
+
+The Data stored in the board is an enum, per tile.
+The enum, state::Space, has an enum for each piece, plus and Open space.
+
+each piece contains the piece's team, and the pawn contains data for if it's moved yet in the game
+(for checking to do the pawn skip)
+
+
+
+* Check Tester
+** sudo code
+
+inputs: defense king location (x, y),      &mut Vector of (x, y) and Movement Relations
+
+read/unwrap king location
+
+*** for space in BOARD ->
+
+// tests if the piece at the location puts the king in check.

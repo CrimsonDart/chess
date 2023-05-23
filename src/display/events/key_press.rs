@@ -4,7 +4,7 @@ use std::time::{SystemTime, Instant};
 use crossterm::{event::{KeyEvent, KeyCode}};
 
 
-use crate::state::{read_board, move_piece};
+use crate::state::{read_board, move_piece, Space};
 
 use super::UserState;
 
@@ -15,7 +15,6 @@ enum Action {
     Down,
     Right,
     Select,
-    None
 }
 
 pub fn event(e: KeyEvent, user: &mut UserState) {
@@ -41,7 +40,7 @@ pub fn event(e: KeyEvent, user: &mut UserState) {
             's' | 'j' => Action::Down,
             'd' | 'l' => Action::Right,
             ' ' => Select,
-            _ => Action::None
+            _ => {return;}
 
         },
         KeyCode::Enter => Select,
@@ -50,13 +49,9 @@ pub fn event(e: KeyEvent, user: &mut UserState) {
         KeyCode::Down => Down,
         KeyCode::Right => Right,
 
-        _ => Action::None
+        _ => {return;}
 
     };
-
-    if let Action::None = action {
-        return;
-    }
 
     act(action, user);
 }
@@ -102,23 +97,25 @@ fn act(action: Action, user: &mut UserState) {
 
             // gets the space at the cursor location
             let cursor_space = match read_board(cursor[0], cursor[1]) {
-                Ok(s) => s,
-                Err(_) => return
+                Some(s) => s,
+                None => return
             };
 
             match (user.selected, cursor_space) {
-                (Some(arr), Some(piece)) => {
+                (Some(arr), _) => {
                     if arr != cursor {
-                        move_piece(arr[0],arr[1], cursor[0], cursor[1])
+                        if move_piece(arr[0],arr[1], cursor[0], cursor[1]) {
+                            user.turn_white = !user.turn_white;
+                        }
                     }
                     user.selected = Option::None;
                     return;
                 },
-                (Some(_), Option::None) | (Option::None, Option::None) => {
+                (_, Space::Open) => {
                     user.selected = Some(cursor);
                 },
-                (Option::None, Some(piece)) => {
-                    if piece.1 == user.turn_white {
+                (Option::None, piece) => {
+                    if piece.is_white().unwrap() == user.turn_white {
                         user.selected = Some(cursor);
                     }
                 }
@@ -134,7 +131,8 @@ fn act(action: Action, user: &mut UserState) {
                 // if the user DOESNT select the same space twice...
                 else {
                     // if the move is successful (no error)
-                    if let Ok(_) = move_piece(arr[0], arr[1], cursor[0], cursor[1]) {
+                    if move_piece(arr[0], arr[1], cursor[0], cursor[1]) {
+                        user.turn_white = !user.turn_white;
                         user.selected = Option::None;
                         return;
 
@@ -146,6 +144,5 @@ fn act(action: Action, user: &mut UserState) {
             }
             user.selected = Some(cursor);
         },
-        None => ()
     }
 }

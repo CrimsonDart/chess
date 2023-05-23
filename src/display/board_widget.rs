@@ -3,7 +3,7 @@
 
 
 
-use crate::state::{Space, Piece, PieceType, PieceInteraction};
+use crate::state::{Space, Movement};
 use ratatui::{
     layout::Rect,
     buffer::{Buffer, Cell},
@@ -114,19 +114,20 @@ impl Widget for DisplayState<'_> {
             let n = ['1', '2', '3', '4', '5', '6', '7', '8'][row_n];
 
             is_dark = write_cell(&mut cells, &!is_dark, FColor::Auto, n);
-            for p in row {
+            for piece in row {
 
-                if let Some(piece) = p {
-                    is_dark = write_cell(&mut cells, &is_dark,
-                        match piece.1 {
+                let piece: Space = piece.clone();
+
+                is_dark = write_cell(&mut cells, &is_dark,
+                    match piece.is_white() {
+                        Some(w) => match w {
                             true => FColor::White,
                             false => FColor::Black
                         },
-                        piece.0.into()
-                    )
-                } else {
-                    is_dark = write_cell(&mut cells, &is_dark, FColor::Auto, ' ');
-                }
+                        None => FColor::Auto
+                    },
+                    piece.into()
+                );
             }
             is_dark = write_cell(&mut cells, &is_dark, FColor::Auto, n);
         }
@@ -148,18 +149,16 @@ impl Widget for DisplayState<'_> {
             set_background_color(c[0], c[1], Color::Rgb(220,139,0), &mut cells);
 
             // set colors of possible moves.
-            if let Ok(Some(space)) = crate::state::read_board(c[0], c[1]) {
+            if let Some(space) = crate::state::read_board(c[0], c[1]) {
 
-                use PieceInteraction::*;
-                for mov in space.move_list(c[0], c[1]) {
+                for (tx, ty, movement) in space.move_list(c[0], c[1]) {
 
-
-                    set_background_color(mov.0, mov.1, match mov.2 {
+                    use Movement::*;
+                    set_background_color(tx, ty, match movement {
 
                         Empty | PawnSkip | KingRookSwap => Color::Rgb(13, 255, 00),
                         Enemy => Color::Rgb(255, 70, 70),
-                        Ally | OutOfBounds => continue
-
+                        Blocked => continue
 
                     }, &mut cells);
 

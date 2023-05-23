@@ -53,50 +53,61 @@ pub fn write_board(x: isize, y: isize, space: Space) -> bool {
 // returns an error if unsuccsessful.
 pub fn move_piece(fx: isize, fy: isize, tx: isize, ty: isize) -> bool {
 
+    // reads board.
     let from = read_board(fx, fy);
     let to = read_board(tx, ty);
 
-    if let None = from {
+    // moving piece from out of bounds is invalid
+    let from = match from {
+        Some(f) => f,
+        None => return false
+    };
+
+    // destination out of bounds is invalid
+    let to = match to {
+        Some(t) => t,
+        None => return false
+    };
+
+    // moving piece from an empty space is invalid
+    if let Open = from {
         return false;
     }
 
-    let Some(from) = from;
-    let mut is_valid = false;
-    let mut interaction = Movement::Empty;
+    use Movement::*;
+
+    let mut movement = Blocked;
 
     for valid_move in from.move_list(fx, fy) {
         if valid_move.0 == tx && valid_move.1 == ty {
-            is_valid = true;
-            interaction = valid_move.2;
+            movement = valid_move.2;
             break;
         }
     }
 
-    if !is_valid {
-        return false;
-    }
-
-    write_board(fx, fy, None);
 
     // if the movement was a Pawn Skip, (which can be performed only once)
     // disables the pawn skip.
+    //
+    // performs RookKing swap as well.
 
-    use PieceInteraction::*;
-    return match interaction {
-        PawnSkip => write_board(tx, ty, Some(Piece(PieceType::Pawn(true), from.1))),
+    return match movement {
+        PawnSkip => {
+            write_board(fx, fy, Space::Open);
+            write_board(tx, ty, Space::Pawn(from.is_white().unwrap(), true))
+        },
         KingRookSwap => {
-            write_board(tx, ty, Some(from));
+            write_board(tx, ty, from);
             write_board(fx, fy, to)
         },
-        _ => {
-            write_board(tx, ty, Some(from))
+        Enemy | Empty => {
+            write_board(fx, fy, Space::Open);
+            write_board(tx, ty, from)
+        },
+        Blocked => {
+            false
         }
-    };
 
-    return if let PieceInteraction::PawnSkip = interaction {
-        write_board(tx, ty, Some(Piece(PieceType::Pawn(true), from.1)))
-    } else {
-        write_board(tx, ty, Some(from))
     };
 }
 
@@ -105,7 +116,8 @@ pub enum Movement {
     Empty,
     Enemy,
     PawnSkip,
-    KingRookSwap,
+    Castle,
+    Check,
     Blocked
 }
 
@@ -130,14 +142,14 @@ impl Into<char> for Space {
             Bishop(_) => 'B',
             Queen(_) => 'Q',
             King(_) => 'K',
-            Empty => ' '
+            Open => ' '
         }
     }
 }
 
 impl Space {
 
-    fn is_white(&self) -> Option<bool> {
+    pub fn is_white(&self) -> Option<bool> {
         match self {
             Pawn(w, _) => Some(*w),
             Rook(w) => Some(*w),
@@ -164,13 +176,10 @@ impl Space {
                 Empty
             },
             Some(piece) => {
-                if piece.is_white() == self.is_white() {
-                    if let Rook(_) = self && let King(_) = piece {
-                        return KingRookSwap;
-                    }
-                    return Blocked;
+                if piece.is_white() != self.is_white() {
+                    return Enemy;
                 }
-                Enemy
+                Blocked
             },
             None => Blocked
         };
@@ -222,22 +231,21 @@ impl Space {
 
         match self {
 
-            Pawn(w, is_skipped) => {
+            Pawn(w, is_moved) => {
 
                 let dir = match w {
-                    true => 1,
-                    false => -1
+                    true => -1,
+                    false => 1
                 };
 
                 // pushes the space in front of the pawn, if empty
                 if let Some(Open) = read_board(x, y + dir) {
-                    vector.push((x, y + dir, Empty));
-                }
-
-                if !is_skipped {
-                    if let Some(Open) = read_board(x, y + (dir * 2)) {
-                        vector.push((x, y + (dir * 2), PawnSkip));
+                    if !is_moved {
+                        if let Some(Open) = read_board(x, y + (dir * 2)) {
+                         vector.push((x, y + (dir * 2), PawnSkip));
+                        }
                     }
+                    vector.push((x, y + dir, Empty));
                 }
 
                 //diagonal attacks
@@ -316,30 +324,65 @@ impl Space {
             },
             King(_) => {
 
+                use Movement::*;
                 for dir in Direction::CARDINALS {
 
                     let (dx, dy) = dir.translate(x, y, 1);
 
-                    if let Some(interaction) = 'testat: {
-
-                        let space = read_board(dx, dy);
-
-                        if let Ok(Some(p)) = space {
-                            if p.1 != self.1 {
-                                break 'testat Some(PieceInteraction::Enemy);
-                            } else if p.1 == self.1 && p.0 == PieceType::Rook {
-                                break 'testat Some(PieceInteraction::KingRookSwap);
+                    match read_board(dx, dy) {
+                        Some(Open) => {
+                            vector.push((dx, dy, Empty))
+                        },
+                        Some(piece) => {
+                            if piece.is_white() != self.is_white() {
+                                vector.push((dx, dy, Enemy))
                             }
-                        } else if let Ok(None) = space {
-                            break 'testat Some(PieceInteraction::Empty);
-                        }
-                        None
-                    } {
-                        vector.push((dx, dy, interaction));
+                        },
+                        None => {}
                     }
                 }
+
+                // Tests for castle move
+                // <Insert code here>
+
+
+
+            },
+            Open => {}
+        }
+        vector
+    }
+
+    fn test_for_checks(king: (isize, isize)) -> Vec<(isize, isize)> {
+        let vector = Vec::new();
+
+        // copies board, so we aren't constantly making unsafe calls
+        // better readability, but worse performance.
+        // TODO
+        let board = unsafe {
+            BOARD.clone()
+        };
+        let (kx, ky) = king;
+        let king = read_board(kx, ky);
+        let king = if let Some(King(_)) = king {
+            let Some(k) = king;
+            k
+        } else {
+            return vector;
+        };
+
+
+        for ty in 0..8 {
+            for tx in 0..8 {
+                let piece = unsafe {BOARD[ty][tx]};
+
+
+
             }
         }
+
+
+
         vector
     }
 }
@@ -378,6 +421,5 @@ impl Direction {
             SE => (x + d, y - d)
         };
         return (x, y);
-
     }
 }
