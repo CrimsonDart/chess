@@ -3,7 +3,7 @@
 
 
 
-use crate::state::{Space, Movement};
+use crate::state::{Space, Movement, MoveData, Loc};
 use ratatui::{
     layout::Rect,
     buffer::{Buffer, Cell},
@@ -76,13 +76,13 @@ fn write_cell(cells: &mut Vec<Cell>, is_dark: &bool, color: FColor, c: char) -> 
 }
 
 // stands for "board position to vector cell"
-fn bpvc(x: isize, y: isize) -> usize {
-    return ((((y) * 10) + x) * 3) as usize;
+fn bpvc(location: Loc) -> usize {
+    return ((((location[1]) * 10) + location[0]) * 3) as usize;
 }
 
-fn set_background_color(x: isize, y: isize, color: Color, cells: &mut Vec<Cell>) {
+fn set_background_color(location: Loc, color: Color, cells: &mut Vec<Cell>) {
 
-    let i = bpvc(x, y);
+    let i = bpvc(location);
     cells[i].set_bg(color);
     cells[i + 1].set_bg(color);
     cells[i + 2].set_bg(color);
@@ -143,22 +143,23 @@ impl Widget for DisplayState<'_> {
 
 
         if let Some(c) = self.user.mouse_cursor {
-            set_background_color(c[0], c[1], Color::Rgb(128, 128, 255), &mut cells);
+            set_background_color(c, Color::Rgb(128, 128, 255), &mut cells);
         }
         if let Some(c) = self.user.selected {
-            set_background_color(c[0], c[1], Color::Rgb(220,139,0), &mut cells);
+            set_background_color(c, Color::Rgb(220,139,0), &mut cells);
 
             // set colors of possible moves.
-            if let Some(space) = crate::state::read_board(c[0], c[1]) {
+            if let Some(space) = crate::state::read_board(c) {
 
-                for (tx, ty, movement) in space.move_list(c[0], c[1]) {
+                for mdata in space.move_list(c) {
 
                     use Movement::*;
-                    set_background_color(tx, ty, match movement {
+                    set_background_color(mdata.from, match mdata.interaction {
 
-                        Empty | PawnSkip | KingRookSwap => Color::Rgb(13, 255, 00),
+                        Empty | PawnSkip | Castle => Color::Rgb(13, 255, 00),
                         Enemy => Color::Rgb(255, 70, 70),
-                        Blocked => continue
+                        Blocked => continue,
+                        Check => Color::Rgb(13, 128, 00)
 
                     }, &mut cells);
 
@@ -167,7 +168,7 @@ impl Widget for DisplayState<'_> {
         }
 
         if self.user.cursor_blink {
-            set_background_color(self.user.key_cursor[0], self.user.key_cursor[1], Color::Rgb(23,74,255), &mut cells);
+            set_background_color(self.user.key_cursor, Color::Rgb(23,74,255), &mut cells);
         }
 
 

@@ -5,6 +5,7 @@ mod resize;
 use std::time::{Duration, Instant};
 use crossterm::event::{poll, read, Event};
 use super::{dynamic::TerminalC, widget::DisplayState};
+use crate::Loc;
 
 pub static mut BREAK_LOOP: bool = false;
 
@@ -14,9 +15,9 @@ pub static mut BREAK_LOOP: bool = false;
 // the first space is 1,A, not 0,0.
 pub struct UserState {
 
-    pub key_cursor: [isize; 2],
-    pub mouse_cursor: Option<[isize; 2]>,
-    pub selected: Option<[isize; 2]>,
+    pub key_cursor: Loc,
+    pub mouse_cursor: Option<Loc>,
+    pub selected: Option<Loc>,
     pub cursor_blink: bool,
     pub blink_timer: Instant,
     pub turn_white: bool
