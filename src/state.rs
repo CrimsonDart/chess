@@ -103,7 +103,7 @@ pub fn move_piece(from_coords: Loc, to_coords: Loc) -> bool {
     return match movement {
         PawnSkip => {
             write_board(from_coords, Space::Open);
-            write_board(to_coords, Space::Pawn(from.is_white().unwrap(), true))
+            write_board(to_coords, Space::Pawn(from.is_white(), true))
         },
         KingRookSwap => {
             write_board(to_coords, from);
@@ -129,6 +129,8 @@ pub enum Movement {
     Check,
     Blocked
 }
+
+
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Space {
@@ -158,15 +160,15 @@ impl Into<char> for Space {
 
 impl Space {
 
-    pub fn is_white(&self) -> Option<bool> {
+    pub fn is_white(&self) -> bool {
         match self {
-            Pawn(w, _) => Some(*w),
-            Rook(w) => Some(*w),
-            Knight(w) => Some(*w),
-            Bishop(w) => Some(*w),
-            Queen(w) => Some(*w),
-            King(w) => Some(*w),
-            Open => None
+            Pawn(w, _) => *w,
+            Rook(w) => *w,
+            Knight(w) => *w,
+            Bishop(w) => *w,
+            Queen(w) => *w,
+            King(w) => *w,
+            Open => {panic!("tried to get the team of an empty space!")}
         }
     }
 
@@ -196,9 +198,8 @@ impl Space {
 
     fn test_line(&self, startc: Loc, direction: Direction, vector: &mut Vec<MoveData>) {
 
-        let mut index: isize = 1;
 
-        while index < 9 {
+        for index in 1..9 {
 
             let testc = direction.translate(startc, index);
             use Movement::*;
@@ -207,18 +208,17 @@ impl Space {
 
             match interaction {
 
-                Enemy | Empty | Check => {
-                    vector.push(MoveData::new(interaction, startc, testc, self.clone(), piece.unwrap()));
+                Empty | Check => {
+                    vector.push(MoveData::new(interaction, startc, testc));
                 },
                 Enemy => {
+                    vector.push(MoveData::new(interaction, startc, testc));
                     break;
                 },
                 PawnSkip | Blocked | Castle => {
                     break;
-                },
+                }
             }
-
-            index = index + 1;
         }
     }
 
@@ -232,35 +232,39 @@ impl Space {
             Pawn(w, is_moved) => {
 
                 let dir = match w {
-                    true => -1,
-                    false => 1
+                    true => Direction::South,
+                    false => Direction::North
                 };
-                let infront = [piece[0], piece[1] + dir];
+
+
+                let infront = dir.translate(piece, 1);
+
 
                 // pushes the space in front of the pawn, if empty
                 if let Some(Open) = read_board(infront) {
                     if !is_moved {
-                        let pawnskip = [piece[0], piece[1] + (dir * 2)];
+                        let pawnskip = dir.translate(piece, 2);
                         if let Some(Open) = read_board(pawnskip) {
-                            vector.push(MoveData::new(PawnSkip, piece, pawnskip, self.clone(), Open));
+                            vector.push(MoveData::new(PawnSkip, piece, pawnskip));
                         }
                     }
-                    vector.push(MoveData::new(Empty, piece, infront, self.clone(), Open));
+                    vector.push(MoveData::new(Empty, piece, infront));
                 }
 
-                let attack_left = [piece[0] - 1, piece[1] + dir];
-                let attack_right = [piece[0] + 1, piece[1] + dir];
+
+                let attack_east = Direction::East.translate(dir.translate(piece, 1), 1);
+                let attack_west = Direction::West.translate(dir.translate(piece, 1), 1);
 
                 //diagonal attacks
-                if let Some(p) = read_board(attack_left) {
-                    if p != Open && p.is_white().unwrap() != *w {
-                        vector.push(MoveData::new(Enemy, piece, attack_left, self.clone(), p));
+                if let Some(p) = read_board(attack_east) {
+                    if p != Open && p.is_white() != *w {
+                        vector.push(MoveData::new(Enemy, piece, attack_east));
                     }
                 }
 
-                if let Some(p) = read_board(attack_right) {
-                    if p != Open && p.is_white().unwrap() != *w {
-                        vector.push(MoveData::new(Enemy, piece, attack_right, self.clone(), p));
+                if let Some(p) = read_board(attack_west) {
+                    if p != Open && p.is_white() != *w {
+                        vector.push(MoveData::new(Enemy, piece, attack_west));
                     }
                 }
             },
@@ -283,7 +287,7 @@ impl Space {
                     if interaction == Blocked || space == None {
                         continue;
                     }
-                    vector.push(MoveData::new(interaction, piece, testc, self.clone(), space.unwrap()));
+                    vector.push(MoveData::new(interaction, piece, testc));
                 }
             },
             Bishop(_) => {
@@ -301,7 +305,7 @@ impl Space {
                     self.test_line(piece, dir, &mut vector);
                 }
             },
-            King(_) => {
+            King(w) => {
 
                 use Movement::*;
                 for dir in Direction::CARDINALS {
@@ -310,11 +314,11 @@ impl Space {
 
                     match read_board(testc) {
                         Some(Open) => {
-                            vector.push(MoveData::new(Empty, piece, testc, self.clone(), Open))
+                            vector.push(MoveData::new(Empty, piece, testc))
                         },
                         Some(space) => {
-                            if space.is_white() != self.is_white() {
-                                vector.push(MoveData::new(Enemy, piece, testc, self.clone(), space))
+                            if space.is_white() != *w {
+                                vector.push(MoveData::new(Enemy, piece, testc))
                             }
                         },
                         None => {}
@@ -357,21 +361,8 @@ impl Space {
                     continue;
                 }
                 let testc: Loc = [tx as isize, ty as isize];
-
-
-
-
-
-
-
-
-
-
             }
         }
-
-
-
         vector
     }
 }
@@ -381,18 +372,14 @@ pub struct MoveData {
     pub interaction: Movement,
     pub from: Loc,
     pub to: Loc,
-    pub attacker: Space,
-    pub target: Space
 }
 
 impl MoveData {
-    fn new(interaction: Movement, from: Loc, to: Loc, attacker: Space, target: Space) -> Self {
+    fn new(interaction: Movement, from: Loc, to: Loc) -> Self {
         Self {
             interaction,
             from,
             to,
-            attacker,
-            target
         }
     }
 }

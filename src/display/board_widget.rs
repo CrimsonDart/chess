@@ -119,12 +119,10 @@ impl Widget for DisplayState<'_> {
                 let piece: Space = piece.clone();
 
                 is_dark = write_cell(&mut cells, &is_dark,
-                    match piece.is_white() {
-                        Some(w) => match w {
-                            true => FColor::White,
-                            false => FColor::Black
-                        },
-                        None => FColor::Auto
+                                     // TODO GETTING THE TEAM OF A BLANK SPACE CAUSES A PANIC
+                    match  {
+                        true => FColor::White,
+                        false => FColor::Black
                     },
                     piece.into()
                 );
