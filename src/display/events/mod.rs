@@ -4,8 +4,8 @@ mod resize;
 
 use std::time::{Duration, Instant};
 use crossterm::event::{poll, read, Event};
-use super::{dynamic::TerminalC, widget::DisplayState};
-use crate::Loc;
+use super::dynamic::TerminalC;
+use crate::{Loc, state::Board};
 
 pub static mut BREAK_LOOP: bool = false;
 
@@ -20,7 +20,8 @@ pub struct UserState {
     pub selected: Option<Loc>,
     pub cursor_blink: bool,
     pub blink_timer: Instant,
-    pub turn_white: bool
+    pub turn_white: bool,
+    pub board: Board
 
 }
 
@@ -35,7 +36,8 @@ pub fn start_event_loop(terminal: &mut TerminalC) -> crossterm::Result<()> {
         selected: None,
         cursor_blink: true,
         blink_timer: Instant::now(),
-        turn_white: true
+        turn_white: true,
+        board: crate::board::STANDARD_BOARD
 
     };
 
@@ -56,20 +58,16 @@ pub fn start_event_loop(terminal: &mut TerminalC) -> crossterm::Result<()> {
             }
         }
 
+        let cb = user_state.cursor_blink.clone();
+
         // cursor blink manager
         if user_state.blink_timer.elapsed() >= Duration::from_millis(500) {
-            user_state.cursor_blink = !user_state.cursor_blink;
+            user_state.cursor_blink = !cb;
             user_state.blink_timer = Instant::now();
         }
 
-
-        let pos = DisplayState {
-            board: &crate::get_board(),
-            user: &user_state
-        };
-
         terminal.draw(|f| {
-            f.render_widget(pos, DisplayState::get_rect());
+            f.render_widget(&user_state, UserState::get_rect());
 
         })?;
 

@@ -2,8 +2,8 @@
 
 
 
-
-use crate::state::{Space, Movement, MoveData, Loc};
+use super::events::UserState;
+use crate::state::{Space, Movement, Loc, AccessBoard};
 use ratatui::{
     layout::Rect,
     buffer::{Buffer, Cell},
@@ -11,17 +11,7 @@ use ratatui::{
     style::{Style, Color, Modifier}
 };
 
-
-
-
-pub struct DisplayState<'a> {
-    pub board: &'static [[Space ;8]; 8],
-    pub user: &'a super::events::UserState,
-}
-
-
-
-impl DisplayState<'_> {
+impl UserState {
     pub fn get_rect() -> Rect {
         Rect { x: 5, y: 5, width: 30, height: 10 }
     }
@@ -94,8 +84,9 @@ fn set_background_color(location: Loc, color: Color, cells: &mut Vec<Cell>) {
 // the board will be 24 cells wide, 8 tall
 // including the border, it is 30 wide, 10 tall.
 
-impl Widget for DisplayState<'_> {
+impl Widget for &UserState {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        use Movement::*;
 
         let mut is_dark = false;
         let mut cells: Vec<Cell> = Vec::new();
@@ -116,15 +107,19 @@ impl Widget for DisplayState<'_> {
             is_dark = write_cell(&mut cells, &!is_dark, FColor::Auto, n);
             for piece in row {
 
-                let piece: Space = piece.clone();
-
                 is_dark = write_cell(&mut cells, &is_dark,
                                      // TODO GETTING THE TEAM OF A BLANK SPACE CAUSES A PANIC
-                    match  {
-                        true => FColor::White,
-                        false => FColor::Black
+
+                    if Space::Open == *piece {
+                        FColor::Auto
+                    } else {
+                        if piece.is_white() {
+                            FColor::White
+                        } else {
+                            FColor::Black
+                        }
                     },
-                    piece.into()
+                    piece.clone().into()
                 );
             }
             is_dark = write_cell(&mut cells, &is_dark, FColor::Auto, n);
@@ -140,33 +135,29 @@ impl Widget for DisplayState<'_> {
         // renders cursors.
 
 
-        if let Some(c) = self.user.mouse_cursor {
+        if let Some(c) = self.mouse_cursor {
             set_background_color(c, Color::Rgb(128, 128, 255), &mut cells);
         }
-        if let Some(c) = self.user.selected {
+        if let Some(c) = self.selected {
             set_background_color(c, Color::Rgb(220,139,0), &mut cells);
 
-            // set colors of possible moves.
-            if let Some(space) = crate::state::read_board(c) {
 
-                for mdata in space.move_list(c) {
+            for move_data in self.board.move_list(c) {
 
-                    use Movement::*;
-                    set_background_color(mdata.from, match mdata.interaction {
+                set_background_color(move_data.to, match move_data.interaction {
 
-                        Empty | PawnSkip | Castle => Color::Rgb(13, 255, 00),
-                        Enemy => Color::Rgb(255, 70, 70),
-                        Blocked => continue,
-                        Check => Color::Rgb(13, 128, 00)
+                    Empty | PawnSkip | Castle => Color::Rgb(13, 255, 00),
+                    Enemy => Color::Rgb(255, 70, 70),
+                    Blocked => continue,
+                    Check => Color::Rgb(13, 128, 00)
 
-                    }, &mut cells);
 
-                }
+                }, &mut cells);
             }
         }
 
-        if self.user.cursor_blink {
-            set_background_color(self.user.key_cursor, Color::Rgb(23,74,255), &mut cells);
+        if self.cursor_blink {
+            set_background_color(self.key_cursor, Color::Rgb(23,74,255), &mut cells);
         }
 
 

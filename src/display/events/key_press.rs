@@ -1,10 +1,7 @@
 
-use std::time::{SystemTime, Instant};
-
-use crossterm::{event::{KeyEvent, KeyCode}};
-
-
-use crate::state::{read_board, move_piece, Space, Loc};
+use std::time::Instant;
+use crossterm::event::{KeyEvent, KeyCode};
+use crate::state::{Space, Board, AccessBoard};
 
 use super::UserState;
 
@@ -96,7 +93,7 @@ fn act(action: Action, user: &mut UserState) {
             };
 
             // gets the space at the cursor location
-            let cursor_space = match read_board(cursor) {
+            let cursor_space = match user.board.read_board(cursor) {
                 Some(s) => s,
                 None => return
             };
@@ -104,7 +101,7 @@ fn act(action: Action, user: &mut UserState) {
             match (user.selected, cursor_space) {
                 (Some(arr), _) => {
                     if arr != cursor {
-                        if move_piece(arr, cursor) {
+                        if user.board.move_piece(arr, cursor) {
                             user.turn_white = !user.turn_white;
                         }
                     }
@@ -115,7 +112,7 @@ fn act(action: Action, user: &mut UserState) {
                     user.selected = Some(cursor);
                 },
                 (Option::None, piece) => {
-                    if piece.is_white().unwrap() == user.turn_white {
+                    if piece.is_white() == user.turn_white {
                         user.selected = Some(cursor);
                     }
                 }
@@ -131,7 +128,7 @@ fn act(action: Action, user: &mut UserState) {
                 // if the user DOESNT select the same space twice...
                 else {
                     // if the move is successful (no error)
-                    if move_piece(arr, cursor) {
+                    if user.board.move_piece(arr, cursor) {
                         user.turn_white = !user.turn_white;
                         user.selected = Option::None;
                         return;
