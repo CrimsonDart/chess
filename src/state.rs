@@ -141,7 +141,7 @@ impl AccessBoard for Board {
             Open => {return vector;}
         }
 
-        deep_checks(self, fromc, self.read_board(fromc).unwrap().is_white(), &mut vector);
+        deep_checks(self, fromc, from.is_white(), &mut vector);
         vector
     }
 
@@ -263,11 +263,16 @@ impl BoardOps for Board {
 fn get_opposing_pieces(board: &Board, is_white: bool) -> Vec<Loc> {
     let mut vector = Vec::new();
 
-    for iy in 1..9 {
-        for ix in 1..9 {
+    println!("for iy in 0..8");
+    for iy in 0..8 {
+        println!("for ix in 0..8");
+        for ix in 0..8 {
+            println!("getting space");
             let space = board[iy][ix];
-            if space == Open || space.is_white() == is_white {continue;}
-            vector.push([ix as isize, iy as isize]);
+            println!("checking some things...");
+            if space == Open {continue;}
+            if space.is_white() == is_white {continue;}
+            vector.push([(ix + 1) as isize, (iy + 1) as isize]);
         }
     }
     vector
@@ -291,6 +296,7 @@ fn get_check(board: &Board, is_white: bool) -> Vec<Loc> {
 }
 
 fn is_check(board: &Board, is_white: bool) -> bool {
+
     for pc in get_opposing_pieces(board, is_white) {
 
         let moveset = board.move_list(pc);
@@ -317,12 +323,18 @@ fn is_move_check(board: &Board, fromc: Loc, toc: Loc) -> bool {
 
 fn deep_checks(board: &Board, fromc: Loc, is_white: bool, vector: &mut Vec<MoveData>) {
 
+
     for index in 0..vector.len() {
 
         let movement = vector[index];
 
         let mut test_board = board.clone();
+
+        println!("Moving Piece...");
+
+
         test_board.move_piece(fromc, movement.to);
+        println!("Testing board...");
 
         if is_check(&test_board, is_white) {
             vector[index] = MoveData::new(Movement::Check, movement.to);
