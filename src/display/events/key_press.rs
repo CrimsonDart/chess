@@ -86,11 +86,7 @@ fn act(action: Action, user: &mut UserState) {
 
 
 
-            let cursor = if let Some(c) = user.mouse_cursor {
-                c
-            } else {
-                user.key_cursor
-            };
+            let cursor = user.key_cursor;
 
             // gets the space at the cursor location
             let cursor_space = match user.board.read_board(cursor) {

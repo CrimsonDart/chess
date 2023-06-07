@@ -16,7 +16,6 @@ pub static mut BREAK_LOOP: bool = false;
 pub struct UserState {
 
     pub key_cursor: Loc,
-    pub mouse_cursor: Option<Loc>,
     pub selected: Option<Loc>,
     pub cursor_blink: bool,
     pub blink_timer: Instant,
@@ -29,10 +28,8 @@ pub struct UserState {
 // routes all events from the terminal to each module.
 pub fn start_event_loop(terminal: &mut TerminalC) -> crossterm::Result<()> {
 
-
     let mut user_state = UserState {
         key_cursor: [1, 1],
-        mouse_cursor: None,
         selected: None,
         cursor_blink: true,
         blink_timer: Instant::now(),
@@ -47,7 +44,7 @@ pub fn start_event_loop(terminal: &mut TerminalC) -> crossterm::Result<()> {
         if poll(Duration::from_millis(1))? {
             match read()? {
                 Event::Key(event) => key_press::event(event, &mut user_state),
-                Event::Mouse(event) => mouse_move::event(event),
+                //Event::Mouse(event) => mouse_move::event(event),
                 //#[cfg(feature = "bracketed-paste")]
                 Event::Resize(width, height) => resize::event(width, height),
                 _ => ()

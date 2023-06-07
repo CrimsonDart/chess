@@ -3,7 +3,7 @@
 
 
 use super::events::UserState;
-use crate::state::{Space, Movement, Loc, AccessBoard};
+use crate::state::{Space, Movement, Loc, AccessBoard, deep_checks};
 use ratatui::{
     layout::Rect,
     buffer::{Buffer, Cell},
@@ -108,8 +108,6 @@ impl Widget for &UserState {
             for piece in row {
 
                 is_dark = write_cell(&mut cells, &is_dark,
-                                     // TODO GETTING THE TEAM OF A BLANK SPACE CAUSES A PANIC
-
                     if Space::Open == *piece {
                         FColor::Auto
                     } else {
@@ -130,26 +128,23 @@ impl Widget for &UserState {
         for c in top_bottom_row.chars() {
             is_dark = write_cell(&mut cells, &is_dark, FColor::Auto, c);
         }
-
-
         // renders cursors.
 
 
-        if let Some(c) = self.mouse_cursor {
-            set_background_color(c, Color::Rgb(128, 128, 255), &mut cells);
-        }
         if let Some(c) = self.selected {
             set_background_color(c, Color::Rgb(220,139,0), &mut cells);
 
 
-            for move_data in self.board.move_list(c) {
+            let mut move_list = self.board.move_list(c);
+            deep_checks(&self.board, c, !self.turn_white, &mut move_list);
+            for move_data in move_list {
 
                 set_background_color(move_data.to, match move_data.interaction {
 
                     Empty | PawnSkip | Castle => Color::Rgb(13, 255, 00),
                     Enemy => Color::Rgb(255, 70, 70),
                     Blocked => continue,
-                    Check => Color::Rgb(13, 128, 00)
+                    Check => Color::Rgb(32, 48, 32)
 
 
                 }, &mut cells);
