@@ -1,7 +1,7 @@
 
 use std::time::Instant;
 use crossterm::event::{KeyEvent, KeyCode};
-use crate::state::{Space, Board, AccessBoard};
+use crate::{board::{read_board, move_piece}, types::Space};
 
 use super::UserState;
 
@@ -55,7 +55,7 @@ pub fn event(e: KeyEvent, user: &mut UserState) {
 
 
 fn act(action: Action, user: &mut UserState) {
-    let cursor = &mut user.key_cursor;
+    let cursor = &mut user.cursor;
 
     user.cursor_blink = true;
     user.blink_timer = Instant::now();
@@ -84,58 +84,46 @@ fn act(action: Action, user: &mut UserState) {
         },
         Select => {
 
-
-
-            let cursor = user.key_cursor;
+            let cursor = user.cursor;
+            let selection = user.selected;
 
             // gets the space at the cursor location
-            let cursor_space = match user.board.read_board(cursor) {
+            let cursor_space = match read_board(&user.board, cursor) {
                 Some(s) => s,
                 None => return
             };
 
-            match (user.selected, cursor_space) {
-                (Some(arr), _) => {
-                    if arr != cursor {
-                        if user.board.move_piece(arr, cursor) {
-                            user.turn_white = !user.turn_white;
-                        }
-                    }
-                    user.selected = Option::None;
-                    return;
-                },
-                (_, Space::Open) => {
-                    user.selected = Some(cursor);
-                },
-                (Option::None, piece) => {
-                    if piece.is_white() == user.turn_white {
+            match selection {
+
+                // if a space is already selected, then try to move the piece at "selection" to "cursor"
+
+                Some(select) => {
+
+                    let select_piece = match read_board(&user.board, select) {
+                        Some(p) => p,
+                        None => return
+                    };
+
+                    if select_piece == Space::Open {
                         user.selected = Some(cursor);
+                        return;
                     }
-                }
-            }
 
-            if let Some(arr) = user.selected {
-
-                // deselect the space if the user selects it again.
-                if arr == cursor {
-                    user.selected = Option::None;
-                    return;
-                }
-                // if the user DOESNT select the same space twice...
-                else {
-                    // if the move is successful (no error)
-                    if user.board.move_piece(arr, cursor) {
+                    if select != cursor &&
+                        move_piece(&mut user.board, select, select_piece, cursor, cursor_space) {
                         user.turn_white = !user.turn_white;
-                        user.selected = Option::None;
-                        return;
+                    }
 
-                    } else {
-                        user.selected = Option::None;
+                    user.selected = None;
+                    return;
+                },
+                None => {
+                    if cursor_space == Space::Open || cursor_space.is_white() == user.turn_white {
+                        user.selected = Some(cursor);
                         return;
                     }
                 }
             }
-            user.selected = Some(cursor);
         },
     }
 }

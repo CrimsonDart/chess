@@ -1,11 +1,10 @@
 mod key_press;
-mod mouse_move;
 mod resize;
 
 use std::time::{Duration, Instant};
 use crossterm::event::{poll, read, Event};
 use super::dynamic::TerminalC;
-use crate::{Loc, state::Board};
+use crate::board::{Board, Loc};
 
 pub static mut BREAK_LOOP: bool = false;
 
@@ -15,7 +14,7 @@ pub static mut BREAK_LOOP: bool = false;
 // the first space is 1,A, not 0,0.
 pub struct UserState {
 
-    pub key_cursor: Loc,
+    pub cursor: Loc,
     pub selected: Option<Loc>,
     pub cursor_blink: bool,
     pub blink_timer: Instant,
@@ -29,7 +28,7 @@ pub struct UserState {
 pub fn start_event_loop(terminal: &mut TerminalC) -> crossterm::Result<()> {
 
     let mut user_state = UserState {
-        key_cursor: [1, 1],
+        cursor: [1, 1],
         selected: None,
         cursor_blink: true,
         blink_timer: Instant::now(),
@@ -44,14 +43,8 @@ pub fn start_event_loop(terminal: &mut TerminalC) -> crossterm::Result<()> {
         if poll(Duration::from_millis(1))? {
             match read()? {
                 Event::Key(event) => key_press::event(event, &mut user_state),
-                //Event::Mouse(event) => mouse_move::event(event),
-                //#[cfg(feature = "bracketed-paste")]
                 Event::Resize(width, height) => resize::event(width, height),
                 _ => ()
-                // removed:
-                // Paste Event,
-                // Focus Gained,
-                // Focus Lost.
             }
         }
 

@@ -1,7 +1,6 @@
 
 #![feature(let_chains)]
 mod display;
-mod state;
 mod board;
 mod check;
 mod types;

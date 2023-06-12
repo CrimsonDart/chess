@@ -3,7 +3,7 @@
 
 
 use super::events::UserState;
-use crate::state::{Space, Movement, Loc, AccessBoard, deep_checks};
+use crate::{types::{Space, Movement::*}, board::{Loc, read_board}, piece::move_list, check::deep_checks};
 use ratatui::{
     layout::Rect,
     buffer::{Buffer, Cell},
@@ -86,7 +86,6 @@ fn set_background_color(location: Loc, color: Color, cells: &mut Vec<Cell>) {
 
 impl Widget for &UserState {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        use Movement::*;
 
         let mut is_dark = false;
         let mut cells: Vec<Cell> = Vec::new();
@@ -130,33 +129,28 @@ impl Widget for &UserState {
         }
         // renders cursors.
 
-
         if let Some(c) = self.selected {
             set_background_color(c, Color::Rgb(220,139,0), &mut cells);
+            let from = read_board(&self.board, c).unwrap();
 
-
-            let mut move_list = self.board.move_list(c);
-            deep_checks(&self.board, c, !self.turn_white, &mut move_list);
+            let mut move_list = move_list(&self.board, c, from);
+            //deep_checks(&self.board, c, !self.turn_white, &mut move_list);
             for move_data in move_list {
 
-                set_background_color(move_data.to, match move_data.interaction {
+                set_background_color(move_data.to, match move_data.relation {
 
-                    Empty | PawnSkip | Castle => Color::Rgb(13, 255, 00),
+                    Empty | PawnSkip | QueenSide | KingSide => Color::Rgb(13, 255, 00),
                     Enemy => Color::Rgb(255, 70, 70),
                     Blocked => continue,
                     Check => Color::Rgb(32, 48, 32)
-
 
                 }, &mut cells);
             }
         }
 
         if self.cursor_blink {
-            set_background_color(self.key_cursor, Color::Rgb(23,74,255), &mut cells);
+            set_background_color(self.cursor, Color::Rgb(23,74,255), &mut cells);
         }
-
-
-
 
         // maps the local Vec<Cell> to the full terminal buffer.
         let mut i = 0;

@@ -19,7 +19,7 @@ pub fn open_term() -> Result<TerminalC, io::Error> {
     enable_raw_mode()?;
 
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let terminal: TerminalC = Terminal::new(backend)?;
     Ok(terminal)

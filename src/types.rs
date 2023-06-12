@@ -6,11 +6,11 @@ use super::board::Loc;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Space {
     Pawn(bool, PawnState),
-    Rook(bool),
+    Rook(bool, bool),
     Knight(bool),
     Bishop(bool),
     Queen(bool),
-    King(bool),
+    King(bool, bool),
     Open
 }
 
@@ -19,11 +19,11 @@ impl Into<char> for Space {
 
         match self {
             Pawn(_, _) => 'P',
-            Rook(_) => 'R',
+            Rook(_, _) => 'R',
             Knight(_) => 'N',
             Bishop(_) => 'B',
             Queen(_) => 'Q',
-            King(_) => 'K',
+            King(_, _) => 'K',
             Open => ' '
         }
     }
@@ -34,11 +34,11 @@ impl Space {
     pub fn is_white(&self) -> bool {
         match self {
             Pawn(w, _) => *w,
-            Rook(w) => *w,
+            Rook(w, _) => *w,
             Knight(w) => *w,
             Bishop(w) => *w,
             Queen(w) => *w,
-            King(w) => *w,
+            King(w, _) => *w,
             Open => {panic!("tried to get the team of an empty space!")}
         }
     }
@@ -56,7 +56,8 @@ pub enum Movement {
     Empty,
     Enemy,
     PawnSkip,
-    Castle,
+    KingSide,
+    QueenSide,
     Check,
     Blocked
 }

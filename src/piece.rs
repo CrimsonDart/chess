@@ -1,5 +1,6 @@
 
-use crate::board::read_board;
+use crate::board::{read_board, do_move};
+use crate::check::is_check;
 
 use super::types::{Direction, Direction::*, MoveData, Space, Space::*, Movement, Movement::*, PawnState };
 use super::board::{Board, Loc};
@@ -42,17 +43,16 @@ fn test_line(board: &Board, fromc: Loc, dir: Direction, vector: &mut Vec<MoveDat
                 vector.push(MoveData {relation, to: toc});
                 break;
             },
-            PawnSkip | Blocked | Castle => {
+            PawnSkip | Blocked | QueenSide | KingSide => {
                 break;
             }
         }
     }
 }
 
-
 fn pawn_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>) {
 
-    let Pawn(is_white, is_moved) = from;
+    let is_white = from.is_white();
 
     let dir = match is_white {
         true => South,
@@ -71,7 +71,7 @@ fn pawn_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>)
         }
     }
 
-    let attack = West.translate(slide, 1);
+    let attack = East.translate(slide, 1);
     let relation = get_relation(board, fromc, attack);
     if relation == Enemy {
         vector.push(MoveData {relation, to: attack});
@@ -92,8 +92,8 @@ fn rook_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>)
 
 fn knight_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>) {
 
-    const knight_moves: [Loc; 8] = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
-    for delta in knight_moves {
+    const KNIGHT_MOVES: [Loc; 8] = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+    for delta in KNIGHT_MOVES {
 
         let toc = [fromc[0] + delta[0], fromc[1] + delta[1]];
         let relation = get_relation(board, fromc, toc);
@@ -120,6 +120,12 @@ fn queen_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>
 }
 
 fn king_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>) {
+
+    let (is_white, has_moved) = match from {
+        King(w, m) => (w, m),
+        _ => {return;}
+    };
+
     for dir in Direction::CARDINALS {
 
         let toc = dir.translate(fromc, 1);
@@ -130,29 +136,69 @@ fn king_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>)
                 vector.push(MoveData { relation: Empty, to: toc });
             },
             Some(piece) => {
-                if piece.is_white != from.is_white() {
+                if piece.is_white() != is_white {
                     vector.push(MoveData { relation: Enemy, to: toc });
                 }
             },
             None => {}
         }
     }
+
+    // castle rules :)
+    // cant castle if the king has moved.
+    if has_moved {return;}
+
+    //cant castle if king is in check
+    if is_check(board, from.is_white()) {return;}
+
+    castle_check(board, fromc, from, East, vector);
+    castle_check(board, fromc, from, West, vector);
 }
 
-fn move_list(board: &Board, fromc: Loc) -> Vec<MoveData> {
+fn castle_check(board: &Board, fromc: Loc, from: Space, dir: Direction, vector: &mut Vec<MoveData>) {
+    let rook = read_board(board, dir.translate(fromc,
+        if dir == East {
+            3
+        } else {
+            4
+        }
+    ));
+
+    if let Some(Rook(_, false)) = rook {
+    } else {
+        return;
+    }
+
+    for n in [1, 2] {
+
+        let toc = dir.translate(fromc, n);
+
+        if !(read_board(board, toc) == Some(Open)) {
+            return;
+        }
+
+        let mut test_board = board.clone();
+        do_move(&mut test_board, fromc, from, toc, Empty);
+        if is_check(&test_board, from.is_white()) {
+            return;
+        }
+    }
+    vector.push(MoveData { relation: match dir {
+        East => KingSide,
+        West => QueenSide,
+        _ => {return;}
+    }, to: dir.translate(fromc, 2) });
+}
+
+pub fn move_list(board: &Board, fromc: Loc, from: Space) -> Vec<MoveData> {
 
     let mut vector = Vec::new();
-    let from = read_board(board, fromc);
-    let from = match from {
-        Some(p) => p,
-        None => {return vector;}
-    };
 
     match from {
         Pawn(_,_) => {
             pawn_list(board, fromc, from, &mut vector);
         },
-        Rook(_) => {
+        Rook(_, _) => {
             rook_list(board, fromc, from, &mut vector);
         },
         Knight(_) => {
@@ -164,7 +210,7 @@ fn move_list(board: &Board, fromc: Loc) -> Vec<MoveData> {
         Queen(_) => {
             queen_list(board, fromc, from, &mut vector);
         },
-        King(_) => {
+        King(_, _) => {
             king_list(board, fromc, from, &mut vector);
         },
         Open => {}
