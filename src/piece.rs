@@ -1,5 +1,4 @@
-
-use crate::board::{read_board, do_move};
+use crate::board::{read_board, do_move, write_board};
 use crate::check::is_check;
 
 use super::types::{Direction, Direction::*, MoveData, Space, Space::*, Movement, Movement::*, PawnState };
@@ -90,9 +89,9 @@ fn rook_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>)
     }
 }
 
+pub const KNIGHT_MOVES: [Loc; 8] = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
 fn knight_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>) {
 
-    const KNIGHT_MOVES: [Loc; 8] = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
     for delta in KNIGHT_MOVES {
 
         let toc = [fromc[0] + delta[0], fromc[1] + delta[1]];
@@ -149,7 +148,7 @@ fn king_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>)
     if has_moved {return;}
 
     //cant castle if king is in check
-    if is_check(board, from.is_white()) {return;}
+    if is_check(board, fromc, is_white) {return;}
 
     castle_check(board, fromc, from, East, vector);
     castle_check(board, fromc, from, West, vector);
@@ -179,7 +178,7 @@ fn castle_check(board: &Board, fromc: Loc, from: Space, dir: Direction, vector: 
 
         let mut test_board = board.clone();
         do_move(&mut test_board, fromc, from, toc, Empty);
-        if is_check(&test_board, from.is_white()) {
+        if is_check(&test_board, fromc, from.is_white()) {
             return;
         }
     }
@@ -217,3 +216,4 @@ pub fn move_list(board: &Board, fromc: Loc, from: Space) -> Vec<MoveData> {
     }
     vector
 }
+

@@ -14,21 +14,6 @@ pub enum Space {
     Open
 }
 
-impl Into<char> for Space {
-    fn into(self) -> char {
-
-        match self {
-            Pawn(_, _) => 'P',
-            Rook(_, _) => 'R',
-            Knight(_) => 'N',
-            Bishop(_) => 'B',
-            Queen(_) => 'Q',
-            King(_, _) => 'K',
-            Open => ' '
-        }
-    }
-}
-
 impl Space {
 
     pub fn is_white(&self) -> bool {
@@ -40,6 +25,20 @@ impl Space {
             Queen(w) => *w,
             King(w, _) => *w,
             Open => {panic!("tried to get the team of an empty space!")}
+        }
+    }
+}
+
+impl From<Space> for char {
+    fn from(value: Space) -> Self {
+        match value {
+            Pawn(_, _) => 'P',
+            Rook(_, _) => 'R',
+            Knight(_) => 'N',
+            Bishop(_) => 'B',
+            Queen(_) => 'Q',
+            King(_, _) => 'K',
+            Open => ' '
         }
     }
 }

@@ -134,7 +134,7 @@ impl Widget for &UserState {
             let from = read_board(&self.board, c).unwrap();
 
             let mut move_list = move_list(&self.board, c, from);
-            //deep_checks(&self.board, c, !self.turn_white, &mut move_list);
+            deep_checks(&self.board, c, &mut move_list);
             for move_data in move_list {
 
                 set_background_color(move_data.to, match move_data.relation {

@@ -54,8 +54,7 @@ pub fn write_board(board: &mut Board, loc: Loc, space: Space) -> bool {
 pub fn move_piece(board: &mut Board, fromc: Loc, from: Space, toc: Loc, to: Space) -> bool {
 
     let mut moveset = move_list(board, fromc, from);
-    print!("len: {}", moveset.len());
-    deep_checks(board, fromc, from.is_white(), &mut moveset);
+    deep_checks(board, fromc, &mut moveset);
 
     for valid_move in moveset {
         if valid_move.to == toc {
