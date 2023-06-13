@@ -1,20 +1,9 @@
+
 use crate::board::{Board, Loc, read_board, do_move};
-use crate::piece::KNIGHT_MOVES;
+use crate::piece::{KNIGHT_MOVES, move_list};
 use crate::types::{MoveData, Movement::*, Space, Space::*, Direction};
 
-macro_rules! push_or_return {
-    ($is_get_list: ident, $vector: ident, $testc: ident) => {
-        if $is_get_list {
-            $vector.push($testc);
-        } else {
-            return Pair::Val2(true);
-        }
-    };
-}
-
-
 pub fn deep_checks(board: &Board, fromc: Loc, vector: &mut Vec<MoveData>) {
-
 
     for index in 0..vector.len() {
         //println!("iteration {} of {}", index, vector.len());
@@ -24,31 +13,32 @@ pub fn deep_checks(board: &Board, fromc: Loc, vector: &mut Vec<MoveData>) {
             (movement.to, movement.relation)
         };
 
-
         let mut test_board = board.clone();
         let from = read_board(&test_board, fromc).unwrap();
 
         do_move(&mut test_board, fromc, from, toc, relation);
-        if is_check(&test_board, fromc // TODO make into kings location.
-                    , from.is_white()) {
+        if is_check(&test_board, get_king(board, from.is_white()).unwrap(), from.is_white()) {
             vector[index] = MoveData {relation: Check, to: toc};
         }
     }
 }
 
-pub fn is_check(board: &Board, kingc: Loc, is_white: bool) -> bool {
-    match dyn_check(board, kingc, is_white, false) {
-        Pair::Val1(_) => panic!("whoops"),
-        Pair::Val2(v) => {
-            return v;
+fn get_king(board: &Board, is_white: bool) -> Option<Loc> {
+
+    for x in 1..9 {
+        for y in 1..9 {
+            let test = read_board(board, [x, y]);
+            if let Some(King(w, _)) = test {
+                if w == is_white {
+                    return Some([x, y]);
+                }
+            }
         }
     }
+    None
 }
 
-fn dyn_check(board: &Board, kingc: Loc, is_white: bool, is_get_list: bool) -> Pair<Vec<Loc>, bool> {
-    let mut vector = Vec::new();
-
-    let from = read_board(board, kingc).unwrap();
+pub fn is_check(board: &Board, kingc: Loc, is_white: bool) -> bool {
 
     // checks for pawns first :)
     'pawn: {
@@ -65,7 +55,7 @@ fn dyn_check(board: &Board, kingc: Loc, is_white: bool, is_get_list: bool) -> Pa
         let test = read_board(board, testc);
         if let Some(Pawn(w, _)) = test {
             if w != is_white {
-                push_or_return!(is_get_list, vector, testc);
+                return true;
             }
         }
 
@@ -73,7 +63,7 @@ fn dyn_check(board: &Board, kingc: Loc, is_white: bool, is_get_list: bool) -> Pa
         let test = read_board(board, testc);
         if let Some(Pawn(w, _)) = test {
             if w != is_white {
-                push_or_return!(is_get_list, vector, testc);
+                return true;
             }
         }
     }
@@ -88,15 +78,14 @@ fn dyn_check(board: &Board, kingc: Loc, is_white: bool, is_get_list: bool) -> Pa
                     Some(Rook(w, _)) | Some(Queen(w)) => {
 
                         if w != is_white {
-                            push_or_return!(is_get_list, vector, testc);
+                            return true;
                         }
                         break;
                     },
                     Some(King(w, _)) => if index == 1 {
                         if w != is_white {
-                            push_or_return!(is_get_list, vector, testc);
+                            return true;
                         }
-                        break;
                     }
                     Some(Open) => {},
                     Some(_) | None => {
@@ -114,7 +103,7 @@ fn dyn_check(board: &Board, kingc: Loc, is_white: bool, is_get_list: bool) -> Pa
             let test = read_board(board, testc);
             match test {
                 Some(Knight(w)) => if w != is_white {
-                    push_or_return!(is_get_list, vector, testc);
+                    return true;
                 },
                 _ => {}
             }
@@ -130,7 +119,7 @@ fn dyn_check(board: &Board, kingc: Loc, is_white: bool, is_get_list: bool) -> Pa
                 match test {
                     Some(Bishop(w)) | Some(Queen(w)) => {
                         if w != is_white {
-                            push_or_return!(is_get_list, vector, testc);
+                            return true;
                         }
                         break;
                     },
@@ -142,12 +131,55 @@ fn dyn_check(board: &Board, kingc: Loc, is_white: bool, is_get_list: bool) -> Pa
             }
         }
     }
-    Pair::Val1(vector)
+    false
 }
 
-enum Pair<T, E> {
-    Val1(T),
-    Val2(E)
+// the 'is_white' variable is the team that is defending;
+// the one getting "checkmated" if you will.
+pub fn is_checkmate(board: &Board, is_white: bool) -> bool {
+
+
+    let kingc = get_king(board, is_white).unwrap();
+
+    // compiles all opposing pieces.
+
+    if !is_check(board, kingc, is_white) {
+        return false;
+    }
+
+    let mut vector = Vec::new();
+
+    for y in 1..9 {
+        for x in 1..9 {
+            let testc = [x, y];
+            let test = read_board(board, testc);
+
+            match test {
+                Some(Open) | None => {
+                    continue;
+                },
+                Some(piece) => if piece.is_white() == is_white {
+                    vector.push((testc, piece));
+                }
+            }
+        }
+    }
+
+    for (fromc, from) in vector {
+        for movement in move_list(board, fromc, from) {
+
+            let mut test_board = board.clone();
+            do_move(&mut test_board, fromc, from, movement.to, movement.relation);
+            let kingc = if let King(_, _) = from {
+                movement.to
+            } else {
+                kingc
+            };
+
+            if !is_check(&test_board, kingc, is_white) {
+                return false;
+            }
+        }
+    }
+    true
 }
-
-
