@@ -136,7 +136,7 @@ pub fn is_check(board: &Board, kingc: Loc, is_white: bool) -> bool {
 
 // the 'is_white' variable is the team that is defending;
 // the one getting "checkmated" if you will.
-pub fn is_checkmate(board: &Board, is_white: bool) -> bool {
+pub fn is_checkmated(board: &Board, is_white: bool) -> bool {
 
 
     let kingc = get_king(board, is_white).unwrap();

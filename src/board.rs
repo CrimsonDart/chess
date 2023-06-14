@@ -118,6 +118,19 @@ pub fn do_move(board: &mut Board, fromc: Loc, from: Space, toc: Loc, relation: M
 
             write_board(board, fromc, Open)
         },
+        EnPessant => {
+
+            let is_white = from.is_white();
+
+            let dir = match is_white {
+                true => Direction::North,
+                false => Direction::South
+            };
+
+            write_board(board, fromc, Open);
+            write_board(board, toc, from);
+            write_board(board, dir.translate(toc, 1), Open)
+        },
         Blocked | Check => {
             false
         }

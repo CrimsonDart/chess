@@ -58,7 +58,8 @@ pub enum Movement {
     KingSide,
     QueenSide,
     Check,
-    Blocked
+    Blocked,
+    EnPessant
 }
 
 #[derive(Copy, Clone)]

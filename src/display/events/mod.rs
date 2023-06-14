@@ -4,7 +4,7 @@ mod resize;
 use std::time::{Duration, Instant};
 use crossterm::event::{poll, read, Event};
 use super::dynamic::TerminalC;
-use crate::board::{Board, Loc};
+use crate::{board::{Board, Loc}, check::is_checkmated};
 
 pub static mut BREAK_LOOP: bool = false;
 

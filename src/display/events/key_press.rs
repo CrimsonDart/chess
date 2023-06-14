@@ -1,7 +1,7 @@
 
 use std::time::Instant;
 use crossterm::event::{KeyEvent, KeyCode};
-use crate::{board::{read_board, move_piece}, types::Space};
+use crate::{board::{read_board, move_piece}, types::Space, check::is_checkmated, display::events::BREAK_LOOP};
 
 use super::UserState;
 
@@ -111,7 +111,18 @@ fn act(action: Action, user: &mut UserState) {
 
                     if select != cursor &&
                         move_piece(&mut user.board, select, select_piece, cursor, cursor_space) {
+
+                        let string = match user.turn_white {
+                            true => "White",
+                            false => "Black"
+                        };
+
                         user.turn_white = !user.turn_white;
+                        if is_checkmated(&user.board, user.turn_white) {
+
+                            println!("\n\n\n\n\n{} has won!", string);
+                            unsafe {BREAK_LOOP = true;}
+                        }
                     }
 
                     user.selected = None;
@@ -124,6 +135,6 @@ fn act(action: Action, user: &mut UserState) {
                     }
                 }
             }
-        },
+        }
     }
 }

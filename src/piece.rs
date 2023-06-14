@@ -42,7 +42,7 @@ fn test_line(board: &Board, fromc: Loc, dir: Direction, vector: &mut Vec<MoveDat
                 vector.push(MoveData {relation, to: toc});
                 break;
             },
-            PawnSkip | Blocked | QueenSide | KingSide => {
+            PawnSkip | Blocked | QueenSide | KingSide | EnPessant => {
                 break;
             }
         }
@@ -70,16 +70,37 @@ fn pawn_list(board: &Board, fromc: Loc, from: Space, vector: &mut Vec<MoveData>)
         }
     }
 
+    // Attacks
     let attack = East.translate(slide, 1);
     let relation = get_relation(board, fromc, attack);
     if relation == Enemy {
         vector.push(MoveData {relation, to: attack});
+    } else if relation == Empty {
+
+        let pessantc = East.translate(fromc, 1);
+        let pessant = read_board(board, pessantc);
+
+        if let Some(Pawn(w, PawnState::PrevSkipped)) = pessant {
+            if w != is_white {
+                vector.push(MoveData {relation: EnPessant, to: attack});
+            }
+        }
     }
 
     let attack = West.translate(slide, 1);
     let relation = get_relation(board, fromc, attack);
     if relation == Enemy {
         vector.push( MoveData {relation, to: attack} );
+    } else if relation == Empty {
+
+        let pessantc = East.translate(fromc, 1);
+        let pessant = read_board(board, pessantc);
+
+        if let Some(Pawn(w, PawnState::PrevSkipped)) = pessant {
+            if w != is_white {
+                vector.push(MoveData {relation: EnPessant, to: attack});
+            }
+        }
     }
 }
 

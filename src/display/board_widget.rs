@@ -139,7 +139,7 @@ impl Widget for &UserState {
 
                 set_background_color(move_data.to, match move_data.relation {
 
-                    Empty | PawnSkip | QueenSide | KingSide => Color::Rgb(13, 255, 00),
+                    Empty | PawnSkip | QueenSide | KingSide | EnPessant => Color::Rgb(13, 255, 00),
                     Enemy => Color::Rgb(255, 70, 70),
                     Blocked => continue,
                     Check => Color::Rgb(32, 48, 32)
